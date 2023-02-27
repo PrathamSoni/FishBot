@@ -80,6 +80,8 @@ class Game:
 
         # optimize these checks and add logging instead of print
         suit = get_suit(card)
+        info = np.array([[i, j, card, 0]])
+
         if not any([suit == get_suit(own) for own in requester.cards]):
             print(f"Player {i} does not have suit")
             self.turn = j
@@ -93,11 +95,10 @@ class Game:
             requester.cards.add(card)
             requested.cards.remove(card)
             self.cards[card] = requester
+            info[:,3] = 1
 
-            info = np.array([[i, j, card, 1]])
         else:
             self.turn = j
-            info = np.array([[i, j, card, 0]])
 
         self.history = np.concatenate([self.history, info])
 
