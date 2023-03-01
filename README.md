@@ -9,13 +9,12 @@ from game import Game
 from models import RecurrentPlayer
 game = Game(6)
 players = [RecurrentPlayer(i) for i in range(6)]
-while not game.is_over():
+for i in range(10):
+     print(game.is_over())
+     if game.is_over():
+        break
      print(game.turn)
      policy = players[game.turn]
-     action = policy.choose(game)
-     if action.is_declare:
-             game.declare(action.declare_dict)
-     else:
-             game.asks(action.to_ask, action.card)
+     r, sp = game.step(policy)
 
 ```

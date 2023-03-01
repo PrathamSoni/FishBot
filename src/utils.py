@@ -32,11 +32,12 @@ def get_suits_hand(hand):
 
 
 class PolicyOutput:
-    def __init__(self, is_declare=None, declare_dict=None, to_ask=None, card=None):
+    def __init__(self, is_declare=None, declare_dict=None, to_ask=None, card=None, score=None):
         self.is_declare = is_declare
         self.declare_dict = declare_dict
         self.to_ask = to_ask
         self.card = card
+        self.score = score
 
     def __repr__(self):
         if self.declare_dict:

@@ -1,4 +1,5 @@
 import random
+
 import numpy as np
 
 from policy import Policy
@@ -49,20 +50,21 @@ class Game:
         self.declared_suites = set()
 
     def __repr__(self):
-        rep = [f"It's player {self.turn}'s turn!", f"The score is {self.score}."] + [repr(self.players[i]) for i in
-                                                                                     range(self.n)]
+        rep = [f"It's player {self.turn}'s turn!", f"The score is {self.score}.",
+               f"Suits {self.declared_suites} have already been declared"] + [repr(self.players[i]) for i in
+                                                                              range(self.n)]
         return "\n".join(rep)
 
     def asks(self, j, card):
         i = self.turn
-        print(f"Player {i} asked Player {j} for {card}")
+        # print(f"Player {i} asked Player {j} for {card}")
 
         if not ((i < self.n // 2) ^ (j < self.n // 2)):
-            print(f"Player {i} and Player {j} are on the same team.")
+            # print(f"Player {i} and Player {j} are on the same team.")
             return ILLEGAL
 
         if self.cards[card] == -1:
-            print(f"Card {card} already declared.")
+            # print(f"Card {card} already declared.")
             return ILLEGAL
 
         requester = self.players[i]
@@ -73,11 +75,11 @@ class Game:
         info = np.array([[i, j, card, 0]])
 
         if not any([suit == get_suit(own) for own in requester.cards]):
-            print(f"Player {i} does not have suit")
+            # print(f"Player {i} does not have suit")
             self.turn = j
             return ILLEGAL
         if card in requester.cards:
-            print(f"Player {i} already has card")
+            # print(f"Player {i} already has card")
             self.turn = j
             return ILLEGAL
 
@@ -85,9 +87,9 @@ class Game:
         if self.cards[card] == j:
             requester.cards.add(card)
             requested.cards.remove(card)
-            self.cards[card] = requester
+            self.cards[card] = i
             info[:, 3] = 1
-
+            toReturn = SUCCEEDS
         else:
             self.turn = j
 
@@ -96,23 +98,23 @@ class Game:
 
     def declare(self, declare_dict):
         i = self.turn
-        print(f"Player {i} is declaring.")
 
         # validate cards
-        if len(declare_dict) != num_in_suit:
-            print(f"Must declare exactly {num_in_suit} cards.")
-            return ILLEGAL
-
         suit = None
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
+                # print(f"Player {i} is declaring {suit}.")
             elif get_suit(card) != suit:
-                print("Not all cards in same suit")
+                # print("Not all cards in same suit")
                 return ILLEGAL
 
+        if len(declare_dict) != num_in_suit:
+            # print(f"Must declare exactly {num_in_suit} cards.")
+            return ILLEGAL
+
         if suit in self.declared_suites:
-            print("Suit already declared")
+            # print(f"Suit already declared")
             return ILLEGAL
 
         # validate team
@@ -120,7 +122,7 @@ class Game:
         declare_team = i < self.n // 2
         same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
         if not all(same_team):
-            print(f"Declaration between different teams not allowed")
+            # print(f"Declaration between different teams not allowed")
             return ILLEGAL
 
         correct = True
@@ -130,10 +132,8 @@ class Game:
                 correct = False
                 break
 
-        reward = BAD_DECLARE
         if not (correct ^ declare_team):
             self.score += 1
-            reward = GOOD_DECLARE
         else:
             self.score -= 1
 
@@ -143,7 +143,7 @@ class Game:
             self.cards[card] = -1
 
         self.declared_suites.add(suit)
-        return reward
+        return GOOD_DECLARE if correct else BAD_DECLARE
 
     def is_over(self):
         for p in self.players:
@@ -151,19 +151,24 @@ class Game:
                 return False
         return True
 
-
-def core_gameplay_loop(policy):
-    num_players = 6
-    game = Game(num_players)
-    while not game.is_over():
-        action = policy.choose(game)
+    def step(self, policy):
+        action = policy.choose(self)
         if action.is_declare:
-            game.declare(action.declare_dict)
+            reward = self.declare(action.declare_dict)
         else:
-            game.asks(action.to_ask, action.card)
+            reward = self.asks(action.to_ask, action.card)
+
+        return reward, action
+
+
+def core_gameplay_loop(game, policies):
+    while not game.is_over():
+        policy = policies[game.turn]
+        r, sp = game.step(policy)
 
 
 if __name__ == "__main__":
-    policy = Policy()
-    core_gameplay_loop(policy)
-
+    num_players = 6
+    policies = [Policy() for i in range(num_players)]
+    game = Game(num_players)
+    core_gameplay_loop(game, policies)

@@ -1,9 +1,11 @@
 import random
 from utils import PolicyOutput, cards_of_same_suit
 
+
 class Policy:
     def choose(self, game) -> PolicyOutput:
         pass
+
 
 class RandomPolicy(Policy):
     def __init__(self):
@@ -25,5 +27,3 @@ class RandomPolicy(Policy):
             card_choose = random.choice(cards_in_hand)
             action.card = random.choice(cards_of_same_suit(card_choose))
         return action
-
-
