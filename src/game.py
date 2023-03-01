@@ -1,9 +1,7 @@
 import random
 import numpy as np
 
-deck_size = 54
-num_suits = 9
-num_in_suit = deck_size // num_suits
+from utils import deck_size, num_in_suit, get_suit, deal
 ILLEGAL = -1000
 FAILS = -1
 SUCCEEDS = 1
@@ -100,6 +98,11 @@ class Game:
     def declare(self, declare_dict):
         i = self.turn
         print(f"Player {i} is declaring.")
+
+        if self.turn != i:
+            print(f"Not Player {i} turn.")
+            return
+
         # validate cards
         if len(declare_dict) != num_in_suit:
             print(f"Must declare exactly {num_in_suit} cards.")
