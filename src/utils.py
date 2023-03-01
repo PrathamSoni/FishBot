@@ -19,8 +19,16 @@ def cards_of_suit(suit):
     return range(suit * num_in_suit, (suit + 1) * num_in_suit)
 
 
+def suit_splice(suit):
+    return slice(suit * num_in_suit, (suit + 1) * num_in_suit)
+
+
 def cards_of_same_suit(card):
     return cards_of_suit(get_suit(card))
+
+
+def get_suits_hand(hand):
+    return set([get_suit(card) for card in hand])
 
 
 class PolicyOutput:
@@ -29,3 +37,9 @@ class PolicyOutput:
         self.declare_dict = declare_dict
         self.to_ask = to_ask
         self.card = card
+
+    def __repr__(self):
+        if self.declare_dict:
+            return str(self.declare_dict)
+        else:
+            return str([self.to_ask, self.card])

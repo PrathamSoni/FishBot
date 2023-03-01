@@ -1,6 +1,7 @@
 import random
 import numpy as np
 
+from policy import Policy
 from utils import deck_size, num_in_suit, get_suit, deal
 
 ILLEGAL = -1000
@@ -56,7 +57,7 @@ class Game:
         i = self.turn
         print(f"Player {i} asked Player {j} for {card}")
 
-        if not ((i in self.team0) ^ (j in self.team0)):
+        if not ((i < self.n // 2) ^ (j < self.n // 2)):
             print(f"Player {i} and Player {j} are on the same team.")
             return ILLEGAL
 
@@ -151,11 +152,10 @@ class Game:
         return True
 
 
-def core_gameplay_loop():
+def core_gameplay_loop(policy):
     num_players = 6
     game = Game(num_players)
-    policy = Policy()
-    while True:
+    while not game.is_over():
         action = policy.choose(game)
         if action.is_declare:
             game.declare(action.declare_dict)
@@ -164,4 +164,6 @@ def core_gameplay_loop():
 
 
 if __name__ == "__main__":
-    core_gameplay_loop()
+    policy = Policy()
+    core_gameplay_loop(policy)
+
