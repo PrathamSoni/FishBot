@@ -1,9 +1,7 @@
 import random
 import numpy as np
 
-deck_size = 54
-num_suits = 9
-num_in_suit = deck_size // num_suits
+from utils import deck_size, num_in_suit, get_suit, deal
 
 
 class Player:
@@ -17,16 +15,6 @@ class Player:
 
     def __repr__(self):
         return "Player " + str(self.i) + ": \nTeam: " + str(self.team) + "\nCards: " + str(sorted(self.cards))
-
-
-def deal():
-    deck = list(range(deck_size))
-    random.shuffle(deck)
-    return deck
-
-
-def get_suit(card):
-    return card // num_in_suit
 
 
 class Game:
@@ -95,7 +83,7 @@ class Game:
             requester.cards.add(card)
             requested.cards.remove(card)
             self.cards[card] = requester
-            info[:,3] = 1
+            info[:, 3] = 1
 
         else:
             self.turn = j
