@@ -4,7 +4,9 @@ import numpy as np
 deck_size = 54
 num_suits = 9
 num_in_suit = deck_size // num_suits
-
+ILLEGAL = -1000
+FAILS = -1
+SUCCEEDS = 1
 
 class Player:
     def __init__(self, i, cards):
@@ -19,22 +21,12 @@ class Player:
         return "Player " + str(self.i) + ": \nTeam: " + str(self.team) + "\nCards: " + str(sorted(self.cards))
 
 
-def deal():
-    deck = list(range(deck_size))
-    random.shuffle(deck)
-    return deck
-
-
-def get_suit(card):
-    return card // num_in_suit
-
-
 class Game:
     def __init__(self, n):
         self.n = n
-        cards = deal()
+        cards = utils.deal()
         self.players = []
-        cards_pp = deck_size // n
+        cards_pp = len(cards) // n
 
         self.team0 = set(range(n // 2))
 
@@ -60,49 +52,53 @@ class Game:
                                                                                      range(self.n)]
         return "\n".join(rep)
 
-    def move(self, i, j, card):
+    def asks(self, j, card):
+        i = self.turn
         print(f"Player {i} asked Player {j} for {card}")
 
         if self.turn != i:
             print(f"Not Player {i} turn.")
-            return
+            return ILLEGAL
 
         if not ((i in self.team0) ^ (j in self.team0)):
             print(f"Player {i} and Player {j} are on the same team.")
-            return
+            return ILLEGAL
 
         if self.cards[card] == -1:
             print(f"Card {card} already declared.")
-            return
+            return ILLEGAL
 
         requester = self.players[i]
         requested = self.players[j]
 
         # optimize these checks and add logging instead of print
-        suit = get_suit(card)
+        suit = utils.get_suit(card)
         info = np.array([[i, j, card, 0]])
 
-        if not any([suit == get_suit(own) for own in requester.cards]):
+        if not any([suit == utils.get_suit(own) for own in requester.cards]):
             print(f"Player {i} does not have suit")
             self.turn = j
-            return
+            return ILLEGAL
         if card in requester.cards:
             print(f"Player {i} already has card")
             self.turn = j
-            return
+            return ILLEGAL
 
+        toReturn = FAILS
         if self.cards[card] == j:
             requester.cards.add(card)
             requested.cards.remove(card)
             self.cards[card] = requester
             info[:,3] = 1
-
+            toReturn = SUCCEEDS
         else:
             self.turn = j
 
         self.history = np.concatenate([self.history, info])
+        return toReturn
 
-    def declare(self, i, declare_dict):
+    def declare(self, declare_dict):
+        i = self.turn
         print(f"Player {i} is declaring.")
         # validate cards
         if len(declare_dict) != num_in_suit:
@@ -112,8 +108,8 @@ class Game:
         suit = None
         for card in declare_dict.keys():
             if suit is None:
-                suit = get_suit(card)
-            elif get_suit(card) != suit:
+                suit = utils.get_suit(card)
+            elif utils.get_suit(card) != suit:
                 print("Not all cards in same suit")
                 return
             else:
@@ -150,8 +146,26 @@ class Game:
 
         self.declared_suites.add(suit)
         return self.score
+    
+    def is_over(self):
+        for p in self.players:
+            if len(p.cards) != 0:
+                return False
+        return True
+
+
+def core_gameplay_loop():
+    num_players = 6
+    game = Game(num_players)
+    policy = Policy()
+    while True:
+        action = policy.choose(game)
+        if action.is_declare:
+            game.declare(action.declare_dict)
+        else:
+            if not game.asks(action.to_ask, action.card):
+                active_player = action.to_ask
 
 
 if __name__ == "__main__":
-    game = Game(6)
-    print(game)
+    core_gameplay_loop()
