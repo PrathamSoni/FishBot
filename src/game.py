@@ -2,11 +2,18 @@ import random
 import numpy as np
 
 from utils import deck_size, num_in_suit, get_suit, deal
+
 ILLEGAL = -1000
 FAILS = -1
 SUCCEEDS = 1
 GOOD_DECLARE = 10
 BAD_DECLARE = -10
+
+
+class Policy:
+    def choose(self, game):
+        pass
+
 
 class Player:
     def __init__(self, i, cards):
@@ -26,9 +33,7 @@ class Game:
         self.n = n
         cards = deal()
         self.players = []
-        cards_pp = len(cards) // n
-
-        self.team0 = set(range(n // 2))
+        cards_pp = deck_size // n
 
         self.cards = {}
         for i in range(n):
@@ -55,10 +60,6 @@ class Game:
     def asks(self, j, card):
         i = self.turn
         print(f"Player {i} asked Player {j} for {card}")
-
-        if self.turn != i:
-            print(f"Not Player {i} turn.")
-            return ILLEGAL
 
         if not ((i in self.team0) ^ (j in self.team0)):
             print(f"Player {i} and Player {j} are on the same team.")
@@ -89,8 +90,8 @@ class Game:
             requester.cards.add(card)
             requested.cards.remove(card)
             self.cards[card] = requester
-            info[:,3] = 1
-            toReturn = SUCCEEDS
+            info[:, 3] = 1
+
         else:
             self.turn = j
 
@@ -100,10 +101,6 @@ class Game:
     def declare(self, declare_dict):
         i = self.turn
         print(f"Player {i} is declaring.")
-
-        if self.turn != i:
-            print(f"Not Player {i} turn.")
-            return ILLEGAL
 
         # validate cards
         if len(declare_dict) != num_in_suit:
@@ -124,8 +121,8 @@ class Game:
 
         # validate team
         teammates = set(declare_dict.values())
-        declare_team = i in self.team0
-        same_team = [not (declare_team ^ (teammate in self.team0)) for teammate in teammates]
+        declare_team = i < self.n // 2
+        same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
             return ILLEGAL
@@ -151,7 +148,7 @@ class Game:
 
         self.declared_suites.add(suit)
         return reward
-    
+
     def is_over(self):
         for p in self.players:
             if len(p.cards) != 0:
@@ -168,8 +165,7 @@ def core_gameplay_loop():
         if action.is_declare:
             game.declare(action.declare_dict)
         else:
-            if not game.asks(action.to_ask, action.card):
-                active_player = action.to_ask
+            game.asks(action.to_ask, action.card)
 
 
 if __name__ == "__main__":
