@@ -5,6 +5,8 @@ from utils import deck_size, num_in_suit, get_suit, deal
 ILLEGAL = -1000
 FAILS = -1
 SUCCEEDS = 1
+GOOD_DECLARE = 10
+BAD_DECLARE = -10
 
 class Player:
     def __init__(self, i, cards):
@@ -22,7 +24,7 @@ class Player:
 class Game:
     def __init__(self, n):
         self.n = n
-        cards = utils.deal()
+        cards = deal()
         self.players = []
         cards_pp = len(cards) // n
 
@@ -70,10 +72,10 @@ class Game:
         requested = self.players[j]
 
         # optimize these checks and add logging instead of print
-        suit = utils.get_suit(card)
+        suit = get_suit(card)
         info = np.array([[i, j, card, 0]])
 
-        if not any([suit == utils.get_suit(own) for own in requester.cards]):
+        if not any([suit == get_suit(own) for own in requester.cards]):
             print(f"Player {i} does not have suit")
             self.turn = j
             return ILLEGAL
@@ -101,26 +103,24 @@ class Game:
 
         if self.turn != i:
             print(f"Not Player {i} turn.")
-            return
+            return ILLEGAL
 
         # validate cards
         if len(declare_dict) != num_in_suit:
             print(f"Must declare exactly {num_in_suit} cards.")
-            return
+            return ILLEGAL
 
         suit = None
         for card in declare_dict.keys():
             if suit is None:
-                suit = utils.get_suit(card)
-            elif utils.get_suit(card) != suit:
+                suit = get_suit(card)
+            elif get_suit(card) != suit:
                 print("Not all cards in same suit")
-                return
-            else:
-                continue
+                return ILLEGAL
 
         if suit in self.declared_suites:
             print("Suit already declared")
-            return
+            return ILLEGAL
 
         # validate team
         teammates = set(declare_dict.values())
@@ -128,7 +128,7 @@ class Game:
         same_team = [not (declare_team ^ (teammate in self.team0)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
-            return
+            return ILLEGAL
 
         correct = True
         for card, owner in declare_dict.items():
@@ -137,8 +137,10 @@ class Game:
                 correct = False
                 break
 
+        reward = BAD_DECLARE
         if not (correct ^ declare_team):
             self.score += 1
+            reward = GOOD_DECLARE
         else:
             self.score -= 1
 
@@ -148,7 +150,7 @@ class Game:
             self.cards[card] = -1
 
         self.declared_suites.add(suit)
-        return self.score
+        return reward
     
     def is_over(self):
         for p in self.players:
