@@ -92,6 +92,11 @@ class Game:
 
     def declare(self, i, declare_dict):
         print(f"Player {i} is declaring.")
+
+        if self.turn != i:
+            print(f"Not Player {i} turn.")
+            return
+
         # validate cards
         if len(declare_dict) != num_in_suit:
             print(f"Must declare exactly {num_in_suit} cards.")
