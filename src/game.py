@@ -1,19 +1,13 @@
 import random
-
 import numpy as np
 
-from utils import deck_size, num_in_suit, get_suit, deal, PolicyOutput
+from utils import deck_size, num_in_suit, get_suit, deal
 
 ILLEGAL = -1000
 FAILS = -1
 SUCCEEDS = 1
 GOOD_DECLARE = 10
 BAD_DECLARE = -10
-
-
-class Policy:
-    def choose(self, game) -> PolicyOutput:
-        pass
 
 
 class Player:

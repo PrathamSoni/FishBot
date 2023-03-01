@@ -1,15 +1,15 @@
 import torch
 from torch.nn import LSTM, Module, Embedding, Linear
 
-from utils import deck_size, num_suits, PolicyOutput
+from utils import deck_size, num_suits, num_in_suit, PolicyOutput
 
 
 class RecurrentPlayer(Module):
     def __init__(self, i, embedding_dim=10, n_players=6, team0=True):
         super().__init__()
         self.i = torch.LongTensor(i)
-        self.embedding_dim = 10
-        self.n_players = 6
+        self.embedding_dim = embedding_dim
+        self.n_players = n_players
         self.team0 = team0
 
         self.cards_embedding = Embedding(deck_size, embedding_dim)
@@ -23,7 +23,7 @@ class RecurrentPlayer(Module):
         self.cards_layer = Linear(self.hidden_dims, deck_size)
 
         self.declare_layer = Linear(self.hidden_dims, 1)
-        self.suite_layer = Linear(self.hidden_dims, num_suits)
+        self.suit_layer = Linear(self.hidden_dims, num_suits)
 
     def forward(self, score, history, cards):
         own_cards = self.cards_embedding(cards).sum(dim=0)
@@ -57,9 +57,9 @@ class RecurrentPlayer(Module):
 
             return declare_score, ask
         else:
-            suite = torch.argmax(self.suite_layer(final_embedding))
-            player_pred = self.declaring_player_layer(final_embedding)[suite * 6:(suite + 1) * 6]
-            card_filter = cards[(suite * 6 <= cards) & (cards <= (suite + 1) * 6)] % 6
+            suit = torch.argmax(self.suit_layer(final_embedding))
+            player_pred = self.declaring_player_layer(final_embedding)[suit * num_in_suit:(suit + 1) * num_in_suit]
+            card_filter = cards[(suit * num_in_suit <= cards) & (cards <= (suit + 1) * num_in_suit)] % num_in_suit
             player_mod = self.i % (self.n_players // 2)
             depend_matrix = player_pred.unsqueeze(0).T @ cards_pred.unsqueeze(0)
 
@@ -71,7 +71,7 @@ class RecurrentPlayer(Module):
                 owners = owners + self.n_players // 2
 
             return declare_score, {card: owner for card, owner in
-                                   zip(range(suite * 6, (suite + 1) * 6), owners.tolist())}
+                                   zip(range(suit * num_in_suit, (suit + 1) * num_in_suit), owners.tolist())}
 
     def choose(self, game):
         score = torch.LongTensor(game.score)
