@@ -116,8 +116,9 @@ class RecurrentPlayer(Module):
         history = torch.tensor(game.history, dtype=torch.long)
         cards = torch.tensor(list(game.players[self.i].cards))
         declared_suits = torch.tensor(list(game.declared_suites), dtype=torch.long)
+        n_rounds = game.n_rounds
 
-        declare, pred, score = self.forward(score, history, cards, declared_suits)
+        declare, pred, score = self.forward(score, history, cards, n_rounds, declared_suits)
 
         if not declare:
             output = PolicyOutput(
@@ -194,7 +195,8 @@ class RecurrentPlayer2(Module):
         final_embedding = torch.concatenate([own_cards, card_tracker_features, score, self.i])
         return final_embedding
 
-    def forward(self, score, card_tracker, cards, declared_suits):
+    def forward(self, score, card_tracker, n_rounds, cards, declared_suits):
+        
         final_embedding = self.generate_embedding(score, card_tracker, cards)
         asking_cards_pred = self.asking_cards_layer(final_embedding)
         declaring_cards_pred = self.declaring_cards_layer(final_embedding)
@@ -228,7 +230,7 @@ class RecurrentPlayer2(Module):
         suit_scores = suit_scores.prod(dim=0)
         suit = suit_scores.argmax().item()
 
-        declare_score = torch.pow(suit_scores.max(), 50 / (n + 1)) * 2 - 1
+        declare_score = torch.pow(suit_scores.max(), 50 / (n_rounds + 1)) * 2 - 1
         owners = args[:, suit]
 
         # if no cards you must declare
@@ -259,8 +261,9 @@ class RecurrentPlayer2(Module):
         cards = torch.tensor(list(game.players[self.i].cards))
         declared_suits = torch.tensor(list(game.declared_suites), dtype=torch.long)
         card_tracker = torch.tensor(game.card_tracker, dtype=torch.long).flatten()
+        n_rounds = game.n_rounds
 
-        declare, pred, score = self.forward(score, card_tracker, cards, declared_suits)
+        declare, pred, score = self.forward(score, card_tracker, n_rounds, cards, declared_suits)
 
         if not declare:
             output = PolicyOutput(

@@ -70,7 +70,9 @@ def train(games, batch_size, gamma, tau, lr):
 def levels_train(levels, games, batch_size, gamma, tau, lr):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
     n = 6
-    our_guy = RecurrentTrainer(0, tau)
+    # our_guy = RecurrentTrainer(0, tau)
+    our_guy = RecurrentTrainer2(0)
+
     other_guy = RandomPolicy()
     optimizer = optim.AdamW(our_guy.policy_net.parameters(), lr=lr, amsgrad=True)
     last = None

@@ -51,6 +51,7 @@ class Game:
         self.cumulative_reward = 0
         self.positive_asks = [0] * 6
         self.negative_asks = [0] * 6
+        self.n_rounds = 0
 
         self.score = 0
         self.declared_suites = set()
@@ -175,6 +176,7 @@ class Game:
             reward = self.asks(action.to_ask, action.card)
         # print(reward, action)
         self.cumulative_reward += reward
+        self.n_rounds += 1
 
         return reward, action
 
