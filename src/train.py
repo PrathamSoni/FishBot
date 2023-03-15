@@ -139,13 +139,15 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
             print(f"Our guy's correct ask percentage vs other guy's ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0] + 1e-7) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks) + 1e-7)}")
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
+        
+        print(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games")
 
     print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
 
 
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(True)
-    LEVELS = 3
+    LEVELS = 25
     GAMES = 100
     BATCH_SIZE = 4
     GAMMA = .99
