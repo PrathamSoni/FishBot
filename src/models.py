@@ -68,8 +68,9 @@ class RecurrentPlayer(Module):
         ask_matrix[:, hand] = -torch.inf
         ask_matrix[:, not_allowable] = -torch.inf
         ask_matrix = torch.sigmoid(ask_matrix)
-        ask_matrix = ask_matrix/ask_matrix.sum()
+        ask_matrix = ask_matrix / ask_matrix.sum()
         ask_score = ask_matrix.max() * 2 - 1
+        ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
 
         declaring_player_pred = self.declaring_player_layer(final_embedding)
         declare_matrix = declaring_player_pred.unsqueeze(0).T @ declaring_cards_pred.unsqueeze(0)
@@ -82,14 +83,14 @@ class RecurrentPlayer(Module):
         declare_matrix[:, :, declared_suits] = -torch.inf
         score_matrix, args = declare_matrix.max(dim=0)
         suit_scores = torch.sigmoid(score_matrix)
-        suit_scores = suit_scores/suit_scores.sum()
+        suit_scores = suit_scores / suit_scores.sum()
         suit_scores = suit_scores.prod(dim=0)
         suit = suit_scores.argmax().item()
-        declare_score = torch.pow(suit_scores.max(), 50/(n+1)) * 2 - 1
+        declare_score = torch.pow(suit_scores.max(), 50 / (n + 1)) * 2 - 1
         owners = args[:, suit]
 
         # if no cards you must declare
-        if cards.shape[0] == 0 or declare_score > ask_score:
+        if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
 
@@ -98,12 +99,11 @@ class RecurrentPlayer(Module):
                               owners.tolist())}, declare_score * 10
 
         else:
-            ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
             try:
                 if type(ask[0]) == list:
                     ask = random.choice(ask)
             except:
-                print(game, ask, ask_matrix)
+                print(history, cards, declared_suits, ask, ask_matrix)
             if self.i < self.n_players // 2:
                 ask[0] += self.n_players // 2
             return False, ask, ask_score
@@ -148,7 +148,6 @@ class RecurrentTrainer:
         self.target_net.load_state_dict(target_net_state_dict)
 
 
-
 class RecurrentPlayer2(Module):
     def __init__(self, i, embedding_dim=10, n_players=6, declare_threshold=.99):
         super().__init__()
@@ -176,7 +175,6 @@ class RecurrentPlayer2(Module):
             own_cards = torch.zeros(self.embedding_dim)
         else:
             own_cards = self.cards_embedding(cards).sum(dim=0)
-
 
         # Before the line causing the error:
         card_tracker[card_tracker == -1] = 300
@@ -209,7 +207,7 @@ class RecurrentPlayer2(Module):
         ask_matrix[:, hand] = -torch.inf
         ask_matrix[:, not_allowable] = -torch.inf
         ask_matrix = torch.sigmoid(ask_matrix)
-        ask_matrix = ask_matrix/ask_matrix.sum()
+        ask_matrix = ask_matrix / ask_matrix.sum()
         ask_score = ask_matrix.max() * 2 - 1
 
         declaring_player_pred = self.declaring_player_layer(final_embedding)
@@ -223,10 +221,10 @@ class RecurrentPlayer2(Module):
         declare_matrix[:, :, declared_suits] = -torch.inf
         score_matrix, args = declare_matrix.max(dim=0)
         suit_scores = torch.sigmoid(score_matrix)
-        suit_scores = suit_scores/suit_scores.sum()
+        suit_scores = suit_scores / suit_scores.sum()
         suit_scores = suit_scores.prod(dim=0)
         suit = suit_scores.argmax().item()
-        declare_score = torch.pow(suit_scores.max(), 50/(n+1)) * 2 - 1
+        declare_score = torch.pow(suit_scores.max(), 50 / (n + 1)) * 2 - 1
         owners = args[:, suit]
 
         # if no cards you must declare
@@ -274,9 +272,6 @@ class RecurrentPlayer2(Module):
         return output
 
 
-
-
-
 class RecurrentTrainer2:
     def __init__(self, i, tau=.005, *args, **kwargs):
         self.policy_net = RecurrentPlayer2(i, *args, **kwargs)
@@ -291,7 +286,6 @@ class RecurrentTrainer2:
             target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (
                     1 - self.tau)
         self.target_net.load_state_dict(target_net_state_dict)
-
 
 
 if __name__ == "__main__":
