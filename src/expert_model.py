@@ -1,26 +1,24 @@
 import random
 
 import torch
-from torch.nn import LSTM, Module, Embedding, Linear
+from torch.nn import Module, Linear
+import torch.nn.functional as F
 
 from game import Game
-from utils import deck_size, num_suits, num_in_suit, suit_splice, get_suits_hand, PolicyOutput, cards_of_suit
+from utils import deck_size, num_suits, num_in_suit, suit_splice, get_suits_hand, PolicyOutput, cards_of_suit, convert
 
 
 class RecurrentPlayer2(Module):
-    def __init__(self, i, embedding_dim=10, n_players=6, declare_threshold=.99):
+    def __init__(self, i, embedding_dim=512, n_players=6, declare_threshold=.99):
         super().__init__()
         self.i = torch.tensor([i])
         self.embedding_dim = embedding_dim
         self.n_players = n_players
 
-        self.cards_embedding = Embedding(deck_size, embedding_dim)
-        self.players_embedding = Embedding(n_players, embedding_dim)
-        self.card_tracker_emb = LSTM(embedding_dim, embedding_dim)
+        self.card_tracker_emb = Linear(deck_size * n_players, embedding_dim)
 
-        self.card_status_embedding = Embedding(deck_size * n_players, embedding_dim)
 
-        self.hidden_dims = 2 * embedding_dim + 2
+        self.hidden_dims = embedding_dim + 1
 
         self.asking_player_layer = Linear(self.hidden_dims, n_players // 2)
         self.declaring_player_layer = Linear(self.hidden_dims, n_players // 2)
@@ -30,24 +28,23 @@ class RecurrentPlayer2(Module):
         self.declare_threshold = declare_threshold
 
     def generate_embedding(self, score, card_tracker, cards):
-        if cards.shape[0] == 0:
-            own_cards = torch.zeros(self.embedding_dim)
-        else:
-            own_cards = self.cards_embedding(cards).sum(dim=0)
-
-        # Fixing indexing (hack)
-        card_tracker[card_tracker == -1] = 300
+        tracker_clone = torch.tensor(card_tracker)
+        idx = self.i.item()
+        tracker_clone[idx] = torch.tensor([1e7 if c in cards else 0 for c in range(54)])
+        tracker_clone = F.normalize(tracker_clone, p=1, dim=0)
+        tracker_list = [tracker_clone[idx]]
+        friend_range = range(self.n_players // 2) if idx < self.n_players / 2 else range(self.n_players // 2, self.n_players)
+        enemy_range = range(self.n_players // 2) if idx >= self.n_players / 2 else range(self.n_players // 2, self.n_players)
+        for i in friend_range:
+            if i != idx:
+                tracker_list.append(tracker_clone[i])
+        for i in enemy_range:
+            tracker_list.append(tracker_clone[i])
+        tracker_input = torch.cat(tracker_list).float()
         # essentially encodes asking player, asked player, asked cards all in one.
-        card_status_embedding = self.card_status_embedding(card_tracker)
-        card_tracker_input = torch.concatenate(
-            [card_status_embedding], dim=1)
+        card_tracker_embedding = F.relu(self.card_tracker_emb(tracker_input))
 
-        if card_tracker_input.shape[0] == 0:
-            card_tracker_features = torch.zeros(self.embedding_dim)
-        else:
-            card_tracker_features = self.card_tracker_emb(card_tracker_input)[0][-1]
-
-        final_embedding = torch.concatenate([own_cards, card_tracker_features, score, self.i])
+        final_embedding = torch.concatenate([card_tracker_embedding, score])
         return final_embedding
 
     def forward(self, score, card_tracker, n_rounds, cards, declared_suits):
@@ -97,7 +94,7 @@ class RecurrentPlayer2(Module):
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
 
-            return True, {card: owner for card, owner in
+            return True, {card: convert(self.i.item(), owner) for card, owner in
                           zip(range(suit * num_in_suit, (suit + 1) * num_in_suit),
                               owners.tolist())}, declare_score * 10
 
@@ -107,15 +104,15 @@ class RecurrentPlayer2(Module):
                     ask = random.choice(ask)
             except:
                 print(history, cards, declared_suits, ask, ask_matrix.reshape(3, 9, 6))
-            if self.i < self.n_players // 2:
-                ask[0] += self.n_players // 2
+            if self.i < self.n_players / 2:
+                ask[0] += 3
             return False, ask, ask_score
 
     def choose(self, game):
         score = torch.tensor([game.score], dtype=torch.long)
         cards = torch.tensor(list(game.players[self.i].cards))
         declared_suits = torch.tensor(list(game.declared_suites), dtype=torch.long)
-        card_tracker = torch.tensor(game.card_tracker, dtype=torch.long).flatten()
+        card_tracker = game.card_tracker
         n_rounds = game.n_rounds
 
         declare, pred, score = self.forward(score, card_tracker, n_rounds, cards, declared_suits)

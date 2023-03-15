@@ -4,6 +4,14 @@ deck_size = 54
 num_suits = 9
 num_in_suit = deck_size // num_suits
 
+CONVERT_DICT = {0 : [0, 1, 2, 3, 4, 5],
+                1 : [1, 0, 2, 3, 4, 5],
+                2 : [2, 0, 1, 3, 4, 5],
+                3 : [3, 4, 5, 0, 1, 2],
+                4 : [4, 3, 5, 0, 1, 2],
+                5 : [5, 3, 4, 0, 1, 2],
+                }
+
 
 def deal():
     deck = list(range(deck_size))
@@ -29,6 +37,9 @@ def cards_of_same_suit(card):
 
 def get_suits_hand(hand):
     return set([get_suit(card) for card in hand])
+
+def convert(iam, heis):
+    return CONVERT_DICT[iam][heis]
 
 
 class PolicyOutput:

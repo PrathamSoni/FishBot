@@ -47,7 +47,7 @@ class Game:
         self.turn = random.choice(range(n))
         self.history = np.zeros((0, 4))
 
-        self.card_tracker = np.zeros((n, deck_size))
+        self.card_tracker = np.ones((n, deck_size))
         self.cumulative_reward = 0
         self.positive_asks = [0] * 6
         self.negative_asks = [0] * 6
@@ -97,11 +97,13 @@ class Game:
             self.cards[card] = i
             info[:, 3] = 1
             toReturn = SUCCEEDS
+            self.card_tracker[:, card] = 0
             self.card_tracker[i, card] = 1
             self.positive_asks[i] += 1
         else:
             self.turn = j
-            self.card_tracker[j, card] = -1
+            self.card_tracker[i, card] = 0
+            self.card_tracker[j, card] = 0
             self.negative_asks[i] += 1
 
 
