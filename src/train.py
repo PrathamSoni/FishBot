@@ -81,6 +81,9 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
             game = Game(n)
             loss = 0
 
+            our_guy_reward = 0
+            our_guy_turns = 0
+
             while not game.is_over():
                 player_id = game.turn
                 steps += 1
@@ -108,6 +111,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
                     reward, action = game.step(our_guy.policy_net)
                     last = (action.score, reward)
+                    our_guy_reward += int(reward)
+                    our_guy_turns += 1
 
                 else:
                     game.step(other_guy)
@@ -117,8 +122,11 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
             print(game.score, steps)
             print(f"Ending game score: {game.score}")
+            print(f"Our guy's reward per turn: {our_guy_reward / our_guy_turns}")
+            print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
+
             print(f"Average score per turn: {game.cumulative_reward / steps}")
-            print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+            print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
 
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")

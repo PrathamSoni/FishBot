@@ -5,10 +5,10 @@ import numpy as np
 from policy import Policy
 from utils import deck_size, num_in_suit, get_suit, deal
 
-ILLEGAL = -1000
+ILLEGAL = -10000
 FAILS = -1
-SUCCEEDS = 5
-GOOD_DECLARE = 5
+SUCCEEDS = 1
+GOOD_DECLARE = 10
 BAD_DECLARE = -10
 
 
@@ -49,8 +49,8 @@ class Game:
 
         self.card_tracker = np.zeros((n, deck_size))
         self.cumulative_reward = 0
-        self.positive_asks = 0
-        self.negative_asks = 0
+        self.positive_asks = [0] * 6
+        self.negative_asks = [0] * 6
 
         self.score = 0
         self.declared_suites = set()
@@ -97,11 +97,11 @@ class Game:
             info[:, 3] = 1
             toReturn = SUCCEEDS
             self.card_tracker[i, card] = 1
-            self.positive_asks += 1
+            self.positive_asks[i] += 1
         else:
             self.turn = j
             self.card_tracker[j, card] = -1
-            self.negative_asks += 1
+            self.negative_asks[i] += 1
 
 
         # print(f"Info this turn: {self.card_tracker}")
