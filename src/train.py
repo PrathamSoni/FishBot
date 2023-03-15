@@ -14,6 +14,8 @@ from copy import deepcopy
 from datetime import datetime, date
 
 
+'''
+# Currently not in use. This is the old training loop.
 def train(games, batch_size, gamma, tau, lr):
     n = 6
     # Select trainer here
@@ -67,6 +69,7 @@ def train(games, batch_size, gamma, tau, lr):
         print(f"Ending game score: {game.score}")
         print(f"Average score per turn: {game.cumulative_reward / steps}")
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+'''
 
 
 def levels_train(levels, games, batch_size, gamma, tau, lr):
@@ -131,7 +134,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
             # print(f"Ending game score: {game.score}")
             print(f"Our guy's reward per turn: {our_guy_reward / (our_guy_turns + 1e-7)}")
             print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
-            
+            print(f"Our guy's positive declares: {game.positive_declares[0]}, our guy's negative asks: {game.negative_declares[0]}")
+            print(f"Other guy's positive declares: {sum(game.positive_declares) - game.positive_declares[0]}, other guy's negative declares: {sum(game.negative_declares) - game.negative_declares[0]}")
             # print(f"Average reward per turn: {game.cumulative_reward / steps}")
             # print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
             avg_reward_comparison = our_guy_reward / (our_guy_turns + 1e-7) - game.cumulative_reward / (steps + 1e-7)
@@ -139,6 +143,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
             print(f"Our guy's reward/turn vs other guy's reward/turn (positive = better): {avg_reward_comparison}")
             print(f"Our guy's correct ask percentage vs other guy's ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0] + 1e-7) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks) + 1e-7)}")
+
+
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
         

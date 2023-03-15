@@ -8,7 +8,7 @@ from utils import deck_size, num_suits, num_in_suit, suit_splice, get_suits_hand
 
 
 class RecurrentPlayer2(Module):
-    def __init__(self, i, embedding_dim=10, n_players=6, declare_threshold=.99):
+    def __init__(self, i, embedding_dim=100, n_players=6, declare_threshold=.99):
         super().__init__()
         self.i = torch.tensor([i])
         self.embedding_dim = embedding_dim
