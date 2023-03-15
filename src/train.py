@@ -15,8 +15,8 @@ from datetime import datetime, date
 def train(games, batch_size, gamma, tau, lr):
     n = 6
     # Select trainer here
-    trainers = [RecurrentTrainer2(i) for i in range(n)]
-    # trainers = [RecurrentTrainer(i, tau) for i in range(n)]
+    # trainers = [RecurrentTrainer2(i) for i in range(n)]
+    trainers = [RecurrentTrainer(i, tau) for i in range(n)]
     optimizers = [optim.AdamW(trainer.policy_net.parameters(), lr=lr, amsgrad=True) for trainer in trainers]
 
     for g in range(games):
@@ -75,6 +75,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
     optimizer = optim.AdamW(our_guy.policy_net.parameters(), lr=lr, amsgrad=True)
     last = None
 
+    avg_reward = 0
     for l in range(levels):
         for g in range(games):
             print(f"Game {g}")
@@ -119,7 +120,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
                     setattr(other_guy, "i", torch.tensor([game.turn]))
                     game.step(other_guy)
 
-                if steps == 1000:
+                if steps == 100:
                     break
 
             # print(game.score, steps)
@@ -129,11 +130,15 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
             
             # print(f"Average reward per turn: {game.cumulative_reward / steps}")
             # print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
+            avg_reward_comparison = our_guy_reward / (our_guy_turns + 1e-7) - game.cumulative_reward / (steps + 1e-7)
+            avg_reward += avg_reward_comparison
 
-            print(f"Our guy's reward/turn vs random reward/turn (positive = better): {our_guy_reward / our_guy_turns - game.cumulative_reward / steps}")
-            print(f"Our guy's correct ask percentage vs random ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0]) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks))}")
+            print(f"Our guy's reward/turn vs other guy's reward/turn (positive = better): {avg_reward_comparison}")
+            print(f"Our guy's correct ask percentage vs other guy's ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0] + 1e-7) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks) + 1e-7)}")
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
+
+    print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
 
 
 if __name__ == "__main__":
