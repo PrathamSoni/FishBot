@@ -1,3 +1,5 @@
+import copy
+
 from game import Game
 from models import RecurrentTrainer
 from policy import RandomPolicy
@@ -34,27 +36,35 @@ def train(games, batch_size, gamma, tau, lr):
         steps = 0
         game = Game(n)
         losses = [0] * n
-
+        rewards = [0] * n
+        last_state = [None] * n
         while not game.is_over():
             steps += 1
             player_id = game.turn
-
             trainer = trainers[player_id]
+
+            if (l := last_state[player_id]) is not None:
+                Q, reward = l
+
+                with torch.no_grad():
+                    next_action_score = 0
+                    if not game.is_over():
+                        next_action = trainer.target_net.choose(game)
+                        next_action_score = next_action.score
+
+                # Compute the expected Q values
+                Q_prime = (next_action_score * gamma) + torch.tensor([reward])
+                # print(Q, next_action_score, reward)
+                criterion = nn.SmoothL1Loss()
+                loss = criterion(Q.unsqueeze(-1), Q_prime)
+
+                loss.backward()
+
             reward, action = game.step(trainer.policy_net)
-            Q = action.score
-            with torch.no_grad():
-                next_action_score = 0
-                if not game.is_over():
-                    next_action = trainer.target_net.choose(game)
-                    next_action_score = next_action.score
-            # Compute the expected Q values
-            Q_prime = (next_action_score * gamma) + torch.tensor([reward])
-            # print(Q, next_action_score, reward)
-            criterion = nn.SmoothL1Loss()
-            loss = criterion(Q.unsqueeze(-1), Q_prime)
+            rewards[player_id] += int(reward > 0)
+            last_state[player_id] = (action.score, reward)
 
-            losses[player_id] += loss
-
+            print(rewards)
             if steps % batch_size == 0:
                 optimize()
 
@@ -65,7 +75,7 @@ def train(games, batch_size, gamma, tau, lr):
 
         if steps % batch_size != 0:
             optimize()
-        print(game.score, steps)
+        print(game.score, steps, rewards)
 
 
 def levels_train(levels, games, batch_size, gamma, tau, lr):
@@ -126,6 +136,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
 
 if __name__ == "__main__":
+    # torch.autograd.set_detect_anomaly(True)
     LEVELS = 10
     GAMES = 1000
     BATCH_SIZE = 4
@@ -133,3 +144,9 @@ if __name__ == "__main__":
     TAU = .005
     LR = 1e-2
     levels_train(LEVELS, GAMES, BATCH_SIZE, GAMMA, TAU, LR)
+#     GAMES = 100
+#     BATCH_SIZE = 1
+#     GAMMA = .99
+#     TAU = .05
+#     LR = 1e-1
+#     train(GAMES, BATCH_SIZE, GAMMA, TAU, LR)

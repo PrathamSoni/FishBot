@@ -104,7 +104,7 @@ class Game:
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
-                # print(f"Player {i} is declaring {suit}.")
+                print(f"Player {i} is declaring {suit}.")
             elif get_suit(card) != suit:
                 # print("Not all cards in same suit")
                 return ILLEGAL
@@ -157,7 +157,7 @@ class Game:
             reward = self.declare(action.declare_dict)
         else:
             reward = self.asks(action.to_ask, action.card)
-
+        # print(reward)
         return reward, action
 
 
