@@ -1,7 +1,9 @@
 import copy
 
 from game import Game
-from models import RecurrentTrainer, RecurrentTrainer2
+from models import RecurrentTrainer
+from expert_model import RecurrentTrainer2
+
 from policy import RandomPolicy
 
 import torch
