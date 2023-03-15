@@ -15,14 +15,15 @@ from datetime import datetime, date
 def train(games, batch_size, gamma, tau, lr):
     n = 6
     # Select trainer here
-    # trainers = [RecurrentTrainer2(i) for i in range(n)]
-    trainers = [RecurrentTrainer(i, tau) for i in range(n)]
+    trainers = [RecurrentTrainer2(i) for i in range(n)]
+    # trainers = [RecurrentTrainer(i, tau) for i in range(n)]
     optimizers = [optim.AdamW(trainer.policy_net.parameters(), lr=lr, amsgrad=True) for trainer in trainers]
 
     for g in range(games):
         print(f"Game {g}")
         steps = 0
         game = Game(n)
+        game.turn = 0
         losses = [0] * n
         rewards = [0] * n
         last_state = [None] * n
@@ -57,7 +58,7 @@ def train(games, batch_size, gamma, tau, lr):
             rewards[player_id] += int(reward > 0)
             last_state[player_id] = (action.score, reward)
 
-            if steps == 1000:
+            if steps == 100:
                 break
 
         print(game.score, steps, rewards)
@@ -115,6 +116,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
                     our_guy_turns += 1
 
                 else:
+                    setattr(other_guy, "i", torch.tensor([game.turn]))
                     game.step(other_guy)
 
                 if steps == 1000:
@@ -136,8 +138,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(True)
-    LEVELS = 10
-    GAMES = 1000
+    LEVELS = 100
+    GAMES = 25
     BATCH_SIZE = 4
     GAMMA = .99
     TAU = .005

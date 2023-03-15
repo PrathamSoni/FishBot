@@ -86,11 +86,14 @@ class RecurrentPlayer(Module):
         suit_scores = suit_scores / suit_scores.sum()
         suit_scores = suit_scores.prod(dim=0)
         suit = suit_scores.argmax().item()
-        declare_score = torch.pow(suit_scores.max(), 50 / (n + 1)) * 2 - 1
+        declare_score = torch.pow(suit_scores.max(), 25 / (n + 1)) * 2 - 1
         owners = args[:, suit]
 
         # if no cards you must declare
         if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
+            if suit in declared_suits:
+                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6))
+                raise ValueError()
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
 
@@ -209,6 +212,7 @@ class RecurrentPlayer2(Module):
         ask_matrix = torch.sigmoid(ask_matrix)
         ask_matrix = ask_matrix / ask_matrix.sum()
         ask_score = ask_matrix.max() * 2 - 1
+        ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
 
         declaring_player_pred = self.declaring_player_layer(final_embedding)
         declare_matrix = declaring_player_pred.unsqueeze(0).T @ declaring_cards_pred.unsqueeze(0)
@@ -224,11 +228,16 @@ class RecurrentPlayer2(Module):
         suit_scores = suit_scores / suit_scores.sum()
         suit_scores = suit_scores.prod(dim=0)
         suit = suit_scores.argmax().item()
+
         declare_score = torch.pow(suit_scores.max(), 50 / (n + 1)) * 2 - 1
         owners = args[:, suit]
 
         # if no cards you must declare
-        if cards.shape[0] == 0 or declare_score > ask_score:
+        if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
+            if suit in declared_suits:
+                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6))
+                raise ValueError()
+
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
 
@@ -237,12 +246,11 @@ class RecurrentPlayer2(Module):
                               owners.tolist())}, declare_score * 10
 
         else:
-            ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
             try:
                 if type(ask[0]) == list:
                     ask = random.choice(ask)
             except:
-                print(game, ask, ask_matrix)
+                print(history, cards, declared_suits, ask, ask_matrix.reshape(3, 9, 6))
             if self.i < self.n_players // 2:
                 ask[0] += self.n_players // 2
             return False, ask, ask_score
