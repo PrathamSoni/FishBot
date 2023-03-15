@@ -66,11 +66,11 @@ class Game:
         # print(f"Player {i} asked Player {j} for {card}")
 
         if not ((i < self.n // 2) ^ (j < self.n // 2)):
-            print(f"Player {i} and Player {j} are on the same team.")
+            # print(f"Player {i} and Player {j} are on the same team.")
             return ILLEGAL
 
         if self.cards[card] == -1:
-            print(f"Card {card} already declared.")
+            # print(f"Card {card} already declared.")
             return ILLEGAL
 
         requester = self.players[i]
@@ -81,11 +81,11 @@ class Game:
         info = np.array([[i, j, card, 0]])
 
         if not any([suit == get_suit(own) for own in requester.cards]):
-            print(f"Player {i} does not have suit")
+            # print(f"Player {i} does not have suit")
             self.turn = j
             return ILLEGAL
         if card in requester.cards:
-            print(f"Player {i} already has card")
+            # print(f"Player {i} already has card")
             self.turn = j
             return ILLEGAL
 
@@ -116,17 +116,17 @@ class Game:
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
-                print(f"Player {i} is declaring {suit}.")
+                # print(f"Player {i} is declaring {suit}.")
             elif get_suit(card) != suit:
                 print("Not all cards in same suit")
                 return ILLEGAL
 
         if len(declare_dict) != num_in_suit:
-            print(f"Must declare exactly {num_in_suit} cards.")
+            # print(f"Must declare exactly {num_in_suit} cards.")
             return ILLEGAL
 
         if suit in self.declared_suites:
-            print(f"Suit already declared")
+            # print(f"Suit already declared")
             return ILLEGAL
 
         # validate team

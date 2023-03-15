@@ -72,7 +72,7 @@ def train(games, batch_size, gamma, tau, lr):
 
                 losses = [0] * n
 
-            if steps == 100:
+            if steps == 1000:
                 break
 
         if steps % batch_size != 0:
@@ -131,11 +131,15 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
                         loss = 0
                 else:
                     game.step(other_guy)
-                if steps == 100:
+                if steps == 1000:
                     break
             if steps % batch_size != 0:
                 optimize()
             print(game.score, steps)
+            print(f"Ending game score: {game.score}")
+            print(f"Average score per turn: {game.cumulative_reward / steps}")
+            print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
 
