@@ -13,8 +13,9 @@ from datetime import datetime, date
 
 def train(games, batch_size, gamma, tau, lr):
     n = 6
-    trainers = [RecurrentTrainer2(i) for i in range(n)]
-    # trainers = [RecurrentTrainer(i, tau) for i in range(n)]
+    # Select trainer here
+    # trainers = [RecurrentTrainer2(i) for i in range(n)]
+    trainers = [RecurrentTrainer(i, tau) for i in range(n)]
     optimizers = [optim.AdamW(trainer.policy_net.parameters(), lr=lr, amsgrad=True) for trainer in trainers]
 
     def optimize():
@@ -65,7 +66,7 @@ def train(games, batch_size, gamma, tau, lr):
             rewards[player_id] += int(reward > 0)
             last_state[player_id] = (action.score, reward)
 
-            print(rewards)
+            # print(rewards)
             if steps % batch_size == 0:
                 optimize()
 
