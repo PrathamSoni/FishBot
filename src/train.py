@@ -125,7 +125,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
             # print(game.score, steps)
             # print(f"Ending game score: {game.score}")
-            print(f"Our guy's reward per turn: {our_guy_reward / our_guy_turns}")
+            print(f"Our guy's reward per turn: {our_guy_reward / (our_guy_turns + 1e-7)}")
             print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
             
             # print(f"Average reward per turn: {game.cumulative_reward / steps}")
@@ -143,8 +143,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
 
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(True)
-    LEVELS = 100
-    GAMES = 25
+    LEVELS = 3
+    GAMES = 100
     BATCH_SIZE = 4
     GAMMA = .99
     TAU = .005
