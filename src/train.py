@@ -1,7 +1,7 @@
 import copy
 
 from game import Game
-from models import RecurrentTrainer
+from models import RecurrentTrainer, RecurrentTrainer2
 from policy import RandomPolicy
 
 import torch
@@ -13,7 +13,8 @@ from datetime import datetime, date
 
 def train(games, batch_size, gamma, tau, lr):
     n = 6
-    trainers = [RecurrentTrainer(i, tau) for i in range(n)]
+    trainers = [RecurrentTrainer2(i) for i in range(n)]
+    # trainers = [RecurrentTrainer(i, tau) for i in range(n)]
     optimizers = [optim.AdamW(trainer.policy_net.parameters(), lr=lr, amsgrad=True) for trainer in trainers]
 
     def optimize():
@@ -76,6 +77,9 @@ def train(games, batch_size, gamma, tau, lr):
         if steps % batch_size != 0:
             optimize()
         print(game.score, steps, rewards)
+        print(f"Ending game score: {game.score}")
+        print(f"Average score per turn: {game.cumulative_reward / steps}")
+        print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
 
 
 def levels_train(levels, games, batch_size, gamma, tau, lr):

@@ -7,8 +7,8 @@ from utils import deck_size, num_in_suit, get_suit, deal
 
 ILLEGAL = -1000
 FAILS = -1
-SUCCEEDS = 1
-GOOD_DECLARE = 10
+SUCCEEDS = 5
+GOOD_DECLARE = 5
 BAD_DECLARE = -10
 
 
@@ -46,6 +46,12 @@ class Game:
 
         self.turn = random.choice(range(n))
         self.history = np.zeros((0, 4))
+
+        self.card_tracker = np.zeros((n, deck_size))
+        self.cumulative_reward = 0
+        self.positive_asks = 0
+        self.negative_asks = 0
+
         self.score = 0
         self.declared_suites = set()
 
@@ -60,11 +66,11 @@ class Game:
         # print(f"Player {i} asked Player {j} for {card}")
 
         if not ((i < self.n // 2) ^ (j < self.n // 2)):
-            # print(f"Player {i} and Player {j} are on the same team.")
+            print(f"Player {i} and Player {j} are on the same team.")
             return ILLEGAL
 
         if self.cards[card] == -1:
-            # print(f"Card {card} already declared.")
+            print(f"Card {card} already declared.")
             return ILLEGAL
 
         requester = self.players[i]
@@ -75,11 +81,11 @@ class Game:
         info = np.array([[i, j, card, 0]])
 
         if not any([suit == get_suit(own) for own in requester.cards]):
-            # print(f"Player {i} does not have suit")
+            print(f"Player {i} does not have suit")
             self.turn = j
             return ILLEGAL
         if card in requester.cards:
-            # print(f"Player {i} already has card")
+            print(f"Player {i} already has card")
             self.turn = j
             return ILLEGAL
 
@@ -90,9 +96,15 @@ class Game:
             self.cards[card] = i
             info[:, 3] = 1
             toReturn = SUCCEEDS
+            self.card_tracker[i, card] = 1
+            self.positive_asks += 1
         else:
             self.turn = j
+            self.card_tracker[j, card] = -1
+            self.negative_asks += 1
 
+
+        # print(f"Info this turn: {self.card_tracker}")
         self.history = np.concatenate([self.history, info])
         return toReturn
 
@@ -106,15 +118,15 @@ class Game:
                 suit = get_suit(card)
                 print(f"Player {i} is declaring {suit}.")
             elif get_suit(card) != suit:
-                # print("Not all cards in same suit")
+                print("Not all cards in same suit")
                 return ILLEGAL
 
         if len(declare_dict) != num_in_suit:
-            # print(f"Must declare exactly {num_in_suit} cards.")
+            print(f"Must declare exactly {num_in_suit} cards.")
             return ILLEGAL
 
         if suit in self.declared_suites:
-            # print(f"Suit already declared")
+            print(f"Suit already declared")
             return ILLEGAL
 
         # validate team
@@ -122,7 +134,7 @@ class Game:
         declare_team = i < self.n // 2
         same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
         if not all(same_team):
-            # print(f"Declaration between different teams not allowed")
+            print(f"Declaration between different teams not allowed")
             return ILLEGAL
 
         correct = True
@@ -152,12 +164,15 @@ class Game:
         return True
 
     def step(self, policy):
+        # want to print reward and action taken
         action = policy.choose(self)
         if action.is_declare:
             reward = self.declare(action.declare_dict)
         else:
             reward = self.asks(action.to_ask, action.card)
-        # print(reward)
+        # print(reward, action)
+        self.cumulative_reward += reward
+
         return reward, action
 
 
