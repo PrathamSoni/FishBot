@@ -120,14 +120,16 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
                 if steps == 1000:
                     break
 
-            print(game.score, steps)
-            print(f"Ending game score: {game.score}")
+            # print(game.score, steps)
+            # print(f"Ending game score: {game.score}")
             print(f"Our guy's reward per turn: {our_guy_reward / our_guy_turns}")
             print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
+            
+            # print(f"Average reward per turn: {game.cumulative_reward / steps}")
+            # print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
 
-            print(f"Average score per turn: {game.cumulative_reward / steps}")
-            print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
-
+            print(f"Our guy's reward/turn vs random reward/turn (positive = better): {our_guy_reward / our_guy_turns - game.cumulative_reward / steps}")
+            print(f"Our guy's correct ask percentage vs random ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0]) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks))}")
         other_guy = deepcopy(our_guy.policy_net)
         torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
 
