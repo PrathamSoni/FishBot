@@ -49,8 +49,12 @@ class Game:
 
         self.card_tracker = np.ones((n, deck_size))
         self.cumulative_reward = 0
+        # Tracks players' asks and declares
         self.positive_asks = [0] * 6
         self.negative_asks = [0] * 6
+        self.positive_declares = [0] * 6
+        self.negative_declares = [0] * 6
+
         self.n_rounds = 0
 
         self.score = 0
@@ -161,6 +165,10 @@ class Game:
             self.cards[card] = -1
 
         self.declared_suites.add(suit)
+        if correct:
+            self.positive_declares[i] += 1
+        else:
+            self.negative_declares[i] += 1
         return GOOD_DECLARE if correct else BAD_DECLARE
 
     def is_over(self):
