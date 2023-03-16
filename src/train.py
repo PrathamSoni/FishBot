@@ -179,13 +179,14 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
         print(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games\n")
         with open(f"{outfile}_{levels}_levels_{games}_games.txt", 'a') as f:
             f.write(f"Level {l} STATISTICS\n")
-            f.write(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games\n")
-            f.write(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}, our guys positive asks: {game.positive_asks[0]}, our guys negative asks: {game.negative_asks[0]}\n")
+            f.write(f"Our guy total positive declares: {all_declares[0]}, our guy total negative declares: {all_declares[1]}\n")
+            f.write(f"Other guy total negative declares: {all_declares[2]}, Other guy total negative declares: {all_declares[3]}\n")
+            f.write(f"Our guy total positive asks: {all_asks[0]}, our guy total negative asks: {all_asks[1]}\n")
+            f.write(f"Other guy total negative asks: {all_asks[2]}, Other guy total negative asks: {all_asks[3]}\n")
     print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games\n")
     
     with open(f"{outfile}_{levels}_levels_{games}_games.txt", 'a') as f:
         f.write(f"FINAL STATISTICS\n")
-        f.write(f"Average reward per turn: {game.cumulative_reward / (steps * levels * games + 1e-7)}\n")
         f.write(f"Our guy total positive declares: {all_declares[0]}, our guy total negative declares: {all_declares[1]}\n")
         f.write(f"Other guy total negative declares: {all_declares[2]}, Other guy total negative declares: {all_declares[3]}\n")
         f.write(f"Our guy total positive asks: {all_asks[0]}, our guy total negative asks: {all_asks[1]}\n")
