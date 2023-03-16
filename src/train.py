@@ -1,5 +1,5 @@
 import copy
-
+import sys
 from game import Game
 from models import RecurrentTrainer
 from expert_model import RecurrentTrainer2
@@ -72,7 +72,7 @@ def train(games, batch_size, gamma, tau, lr):
 '''
 
 
-def levels_train(levels, games, batch_size, gamma, tau, lr):
+def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
     n = 6
     # our_guy = RecurrentTrainer(0, tau)
@@ -133,7 +133,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
             # print(f"Ending game score: {game.score}")
             print(f"Our guy's reward per turn: {our_guy_reward / (our_guy_turns + 1e-7)}")
             print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
-            print(f"Our guy's positive declares: {game.positive_declares[0]}, our guy's negative asks: {game.negative_declares[0]}")
+            print(f"Our guy's positive declares: {game.positive_declares[0]}, our guy's negative declares: {game.negative_declares[0]}")
             print(f"Other guy's positive declares: {sum(game.positive_declares) - game.positive_declares[0]}, other guy's negative declares: {sum(game.negative_declares) - game.negative_declares[0]}")
             # print(f"Average reward per turn: {game.cumulative_reward / steps}")
             # print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
@@ -150,20 +150,23 @@ def levels_train(levels, games, batch_size, gamma, tau, lr):
         print(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games")
 
     print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
+    
+    with open(f"{outfile}_{levels}_levels_{games}_games).txt", 'w') as f:
+        f.write(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
 
+def main():
+    if len(sys.argv) != 4:
+        raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
+    # Set with params
+    OUTFILE = sys.argv[1]
+    LEVELS = int(sys.argv[2])
+    GAMES = int(sys.argv[3])
 
-if __name__ == "__main__":
-    # torch.autograd.set_detect_anomaly(True)
-    LEVELS = 100
-    GAMES = 100
     BATCH_SIZE = 4
     GAMMA = .99
     TAU = .005
     LR = 1e-2
-    levels_train(LEVELS, GAMES, BATCH_SIZE, GAMMA, TAU, LR)
-    # GAMES = 100
-    # BATCH_SIZE = 1
-    # GAMMA = .99
-    # TAU = .05
-    # LR = 1e-1
-    # train(GAMES, BATCH_SIZE, GAMMA, TAU, LR)
+    levels_train(LEVELS, GAMES, BATCH_SIZE, GAMMA, TAU, LR, OUTFILE)
+
+if __name__ == "__main__":
+    main()
