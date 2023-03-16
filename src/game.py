@@ -110,7 +110,6 @@ class Game:
             self.card_tracker[j, card] = 0
             self.negative_asks[i] += 1
 
-
         # print(f"Info this turn: {self.card_tracker}")
         self.history = np.concatenate([self.history, info])
         return toReturn
@@ -179,6 +178,7 @@ class Game:
 
     def step(self, policy):
         # want to print reward and action taken
+        i = self.turn
         action = policy.choose(self)
         if action.is_declare:
             reward = self.declare(action.declare_dict)
@@ -187,6 +187,18 @@ class Game:
         # print(reward, action)
         self.cumulative_reward += reward
         self.n_rounds += 1
+        if self.turn == i and len(self.players[i].cards) == 0 and not self.is_over():
+            team = self.players[i].team
+            same_team_with_cards = [j for j in range(team * (self.n // 2), (team + 1) * (self.n // 2)) if
+                                    len(self.players[j].cards) > 0]
+
+            if len(same_team_with_cards) > 0:
+                self.turn = random.choice(same_team_with_cards)
+            else:
+                team = 1 - team
+                other_team_with_cards = [j for j in range(team * (self.n // 2), (team + 1) * (self.n // 2)) if
+                                         len(self.players[j].cards) > 0]
+                self.turn = random.choice(other_team_with_cards)
 
         return reward, action
 

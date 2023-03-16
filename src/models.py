@@ -16,9 +16,9 @@ class RecurrentPlayer(Module):
 
         self.cards_embedding = Embedding(deck_size, embedding_dim)
         self.players_embedding = Embedding(n_players, embedding_dim)
-        self.history_embedding = LSTM(3 * embedding_dim + 1, embedding_dim)
+        self.history_embedding = LSTM(2 * embedding_dim + 1, embedding_dim)
 
-        self.hidden_dims = 2 * embedding_dim + 2
+        self.hidden_dims =  embedding_dim + 2
 
         self.asking_player_layer = Linear(self.hidden_dims, n_players // 2)
         self.declaring_player_layer = Linear(self.hidden_dims, n_players // 2)
@@ -41,15 +41,15 @@ class RecurrentPlayer(Module):
         asking_players_embedding = self.players_embedding(asking_players)
         asked_players_embedding = self.players_embedding(asked_players)
         asked_cards_embedding = self.cards_embedding(asked_cards)
-        history_input = torch.concatenate(
-            [asking_players_embedding, asked_players_embedding, asked_cards_embedding, success], dim=1)
+        # history_input = torch.relu(torch.concatenate(
+        #     [asking_players_embedding, asked_players_embedding, asked_cards_embedding, success], dim=1))
+        #
+        # if history_input.shape[0] == 0:
+        #     history_features = torch.zeros(self.embedding_dim)
+        # else:
+        #     history_features = torch.relu(self.history_embedding(history_input)[0][-1])
 
-        if history_input.shape[0] == 0:
-            history_features = torch.zeros(self.embedding_dim)
-        else:
-            history_features = self.history_embedding(history_input)[0][-1]
-
-        final_embedding = torch.concatenate([own_cards, history_features, score, self.i])
+        final_embedding = torch.relu(torch.concatenate([own_cards, score, self.i]))
         return final_embedding
 
     def forward(self, score, history, cards, declared_suits):
@@ -69,7 +69,7 @@ class RecurrentPlayer(Module):
         ask_matrix[:, not_allowable] = -torch.inf
         ask_matrix = torch.sigmoid(ask_matrix)
         ask_matrix = ask_matrix / ask_matrix.sum()
-        ask_score = ask_matrix.max() * 2 - 1
+        ask_score = ask_matrix.max()
         ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
 
         declaring_player_pred = self.declaring_player_layer(final_embedding)
@@ -79,20 +79,25 @@ class RecurrentPlayer(Module):
         other_players = torch.tensor([i for i in range(self.n_players // 2) if i != player_mod]).unsqueeze(-1)
         declare_matrix[other_players, hand] = -torch.inf
 
-        declare_matrix = declare_matrix.reshape((self.n_players // 2, num_in_suit, num_suits))
-        declare_matrix[:, :, declared_suits] = -torch.inf
+        declare_matrix = declare_matrix.reshape((self.n_players // 2, num_suits, num_in_suit))
+        declare_matrix[:, declared_suits, :] = -torch.inf
         score_matrix, args = declare_matrix.max(dim=0)
         suit_scores = torch.sigmoid(score_matrix)
         suit_scores = suit_scores / suit_scores.sum()
-        suit_scores = suit_scores.prod(dim=0)
-        suit = suit_scores.argmax().item()
-        declare_score = torch.pow(suit_scores.max(), 25 / (n + 1)) * 2 - 1
-        owners = args[:, suit]
+        suit_scores = suit_scores.prod(dim=1)
+
+        if torch.all(torch.isnan(suit_scores)) or suit_scores.sum().item()==0:
+            suit = random.choice(list(set(range(num_suits)) - set(declared_suits.tolist())))
+        else:
+            suit = suit_scores.argmax().item()
+
+        declare_score = torch.pow(suit_scores.max(), 15/(n+1))
+        owners = args[suit]
 
         # if no cards you must declare
         if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
             if suit in declared_suits:
-                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6))
+                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6), suit_scores)
                 raise ValueError()
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
@@ -116,9 +121,8 @@ class RecurrentPlayer(Module):
         history = torch.tensor(game.history, dtype=torch.long)
         cards = torch.tensor(list(game.players[self.i].cards))
         declared_suits = torch.tensor(list(game.declared_suites), dtype=torch.long)
-        n_rounds = game.n_rounds
 
-        declare, pred, score = self.forward(score, history, cards, n_rounds, declared_suits)
+        declare, pred, score = self.forward(score, history, cards, declared_suits)
 
         if not declare:
             output = PolicyOutput(
@@ -150,5 +154,3 @@ class RecurrentTrainer:
             target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (
                     1 - self.tau)
         self.target_net.load_state_dict(target_net_state_dict)
-
-
