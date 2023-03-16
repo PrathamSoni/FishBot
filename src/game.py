@@ -3,7 +3,7 @@ import random
 import numpy as np
 
 from policy import Policy
-from utils import deck_size, num_in_suit, get_suit, deal
+from utils import deck_size, num_in_suit, get_suit, deal, expert_actions
 
 ILLEGAL = -10000
 FAILS = -1
@@ -68,9 +68,10 @@ class Game:
 
     def asks(self, j, card):
         i = self.turn
-        # print(f"Player {i} asked Player {j} for {card}")
+        #print(f"Player {i} asked Player {j} for {card}")
 
         if not ((i < self.n // 2) ^ (j < self.n // 2)):
+            import pdb; pdb.set_trace()
             print(f"Player {i} and Player {j} are on the same team.")
             return ILLEGAL
 
@@ -143,6 +144,7 @@ class Game:
         declare_team = i < self.n // 2
         same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
         if not all(same_team):
+            import pdb; pdb.set_trace()
             print(f"Declaration between different teams not allowed")
             return ILLEGAL
 
@@ -161,6 +163,7 @@ class Game:
         for card in declare_dict.keys():
             true_owner = self.cards[card]
             self.players[true_owner].cards.remove(card)
+            self.card_tracker[:, card] = 0
             self.cards[card] = -1
 
         self.declared_suites.add(suit)
@@ -179,7 +182,11 @@ class Game:
     def step(self, policy):
         # want to print reward and action taken
         i = self.turn
-        action = policy.choose(self)
+        action = expert_actions(i, list(self.players[i].cards), self.card_tracker)
+        if action is not None and action.is_declare:
+            print("Expert Declare!")
+        if action is None:
+            action = policy.choose(self)
         if action.is_declare:
             reward = self.declare(action.declare_dict)
         else:

@@ -74,25 +74,21 @@ class RecurrentPlayer2(Module):
         other_players = torch.tensor([i for i in range(self.n_players // 2) if i != player_mod]).unsqueeze(-1)
         declare_matrix[other_players, hand] = -torch.inf
 
-        declare_matrix = declare_matrix.reshape((self.n_players // 2, num_suits, num_in_suit))
-        declare_matrix[:, declared_suits, :] = -torch.inf
+        declare_matrix = declare_matrix.reshape((self.n_players // 2, num_in_suit, num_suits))
+        declare_matrix[:, :, declared_suits] = -torch.inf
         score_matrix, args = declare_matrix.max(dim=0)
         suit_scores = torch.sigmoid(score_matrix)
         suit_scores = suit_scores / suit_scores.sum()
-        suit_scores = suit_scores.prod(dim=1)
+        suit_scores = suit_scores.prod(dim=0)
+        suit = suit_scores.argmax().item()
 
-        if torch.all(torch.isnan(suit_scores)) or suit_scores.sum().item() == 0:
-            suit = random.choice(list(set(range(num_suits)) - set(declared_suits.tolist())))
-        else:
-            suit = suit_scores.argmax().item()
-
-        declare_score = torch.pow(suit_scores.max(), 15 / (n_rounds + 1))
-        owners = args[suit]
+        declare_score = torch.pow(suit_scores.max(), 50 / (n_rounds + 1)) * 2 - 1
+        owners = args[:, suit]
 
         # if no cards you must declare
         if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
             if suit in declared_suits:
-                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6), suit_scores)
+                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6))
                 raise ValueError()
 
             if self.i >= self.n_players // 2:
@@ -107,7 +103,7 @@ class RecurrentPlayer2(Module):
                 if type(ask[0]) == list:
                     ask = random.choice(ask)
             except:
-                print(card_tracker, cards, declared_suits, ask, ask_matrix.reshape(3, 9, 6))
+                print(history, cards, declared_suits, ask, ask_matrix.reshape(3, 9, 6))
             if self.i < self.n_players / 2:
                 ask[0] += 3
             return False, ask, ask_score

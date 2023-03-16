@@ -119,7 +119,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
                         our_guy.update_target()
 
                     reward, action = game.step(our_guy.policy_net)
-                    last = (action.score, reward)
+                    last = (action.score, reward) if action.score is not None else None
                     our_guy_reward += int(reward)
                     our_guy_turns += 1
 
