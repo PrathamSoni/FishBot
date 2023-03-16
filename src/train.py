@@ -83,6 +83,8 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
     last = None
 
     avg_reward = 0
+    all_asks = [0] * 4
+    all_declares = [0] * 4
     for l in range(levels):
         for g in range(games):
             print(f"Game {g}")
@@ -129,30 +131,66 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
                 if steps == 100:
                     break
 
-            # print(game.score, steps)
-            # print(f"Ending game score: {game.score}")
-            print(f"Our guy's reward per turn: {our_guy_reward / (our_guy_turns + 1e-7)}")
-            print(f"Our guy's positive asks: {game.positive_asks[0]}, our guy's negative asks: {game.negative_asks[0]}")
-            print(f"Our guy's positive declares: {game.positive_declares[0]}, our guy's negative declares: {game.negative_declares[0]}")
-            print(f"Other guy's positive declares: {sum(game.positive_declares) - game.positive_declares[0]}, other guy's negative declares: {sum(game.negative_declares) - game.negative_declares[0]}")
-            # print(f"Average reward per turn: {game.cumulative_reward / steps}")
-            # print(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}")
-            avg_reward_comparison = our_guy_reward / (our_guy_turns + 1e-7) - game.cumulative_reward / (steps + 1e-7)
+            # Reward stats
+            our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
+            average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
+
+            # Ask stats
+            our_guy_positive_asks = game.positive_asks[0]
+            our_guy_negative_asks = game.negative_asks[0]
+            other_guy_positive_asks = sum(game.positive_asks) - game.positive_asks[0]
+            other_guy_negative_asks = sum(game.negative_asks) - game.negative_asks[0]
+
+            # Declare stats
+            our_guy_positive_declares = game.positive_declares[0]
+            our_guy_negative_declares = game.negative_declares[0]
+            other_guy_positive_declares = sum(game.positive_declares) - game.positive_declares[0]
+            other_guy_negative_declares = sum(game.negative_declares) - game.negative_declares[0]
+
+            # Update overall statistics
+            all_asks[0] += our_guy_positive_asks
+            all_asks[1] += our_guy_negative_asks
+            all_asks[2] += other_guy_positive_asks
+            all_asks[3] += other_guy_negative_asks
+
+            all_declares[0] += our_guy_positive_declares
+            all_declares[1] += our_guy_negative_declares
+            all_declares[2] += other_guy_positive_declares
+            all_declares[3] += other_guy_negative_declares
+
+            avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
             avg_reward += avg_reward_comparison
 
-            print(f"Our guy's reward/turn vs other guy's reward/turn (positive = better): {avg_reward_comparison}")
-            print(f"Our guy's correct ask percentage vs other guy's ask percentage (positive = better): {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0] + 1e-7) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks) + 1e-7)}")
+            # print(f"Our guy's reward per turn: {our_guy_reward_per_turn}")
+            # print(f"Our guy's positive asks: {our_guy_positive_asks}, our guy's negative asks: {our_guy_negative_asks}")
+            # print(f"Our guy's positive declares: {our_guy_positive_declares}, our guy's negative declares: {our_guy_negative_declares}")
+            # print(f"Other guy's positive declares: {other_guy_positive_declares}, other guy's negative declares: {other_guy_negative_declares}")
+            # print(f"Average reward per turn: {average_reward_per_turn}")
+            # print(f"Other guy's positive asks: {other_guy_positive_asks}, other guy's negative asks: {other_guy_negative_asks}")
+
+            # print(f"Our guy's reward/turn vs other guy's reward/turn (positive = better): {avg_reward_comparison}")
+            # print(f"Our guy's correct ask percentage vs other guy's ask percentage (positive = better): \
+            #       {game.positive_asks[0] / (game.positive_asks[0] + game.negative_asks[0] + 1e-7) - sum(game.positive_asks) / (sum(game.positive_asks) + sum(game.negative_asks) + 1e-7)}")
 
 
         other_guy = deepcopy(our_guy.policy_net)
         #torch.save(our_guy.policy_net, f"{time_string}_level{l}.pt")
         
-        print(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games")
-
-    print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
+        print(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games\n")
+        with open(f"{outfile}_{levels}_levels_{games}_games.txt", 'a') as f:
+            f.write(f"Level {l} STATISTICS\n")
+            f.write(f"Average reward/turn vs other guy (positive = better): {avg_reward / ((l+1) * games)}, over {(l+1) * games} games\n")
+            f.write(f"Total positive asks: {sum(game.positive_asks)}, total negative asks: {sum(game.negative_asks)}, our guys positive asks: {game.positive_asks[0]}, our guys negative asks: {game.negative_asks[0]}\n")
+    print(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games\n")
     
-    with open(f"{outfile}_{levels}_levels_{games}_games).txt", 'w') as f:
-        f.write(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games")
+    with open(f"{outfile}_{levels}_levels_{games}_games.txt", 'a') as f:
+        f.write(f"FINAL STATISTICS\n")
+        f.write(f"Average reward per turn: {game.cumulative_reward / (steps * levels * games + 1e-7)}\n")
+        f.write(f"Our guy total positive declares: {all_declares[0]}, our guy total negative declares: {all_declares[1]}\n")
+        f.write(f"Other guy total negative declares: {all_declares[2]}, Other guy total negative declares: {all_declares[3]}\n")
+        f.write(f"Our guy total positive asks: {all_asks[0]}, our guy total negative asks: {all_asks[1]}\n")
+        f.write(f"Other guy total negative asks: {all_asks[2]}, Other guy total negative asks: {all_asks[3]}\n")
+        f.write(f"Final average reward/turn vs other guy (positive = better): {avg_reward / (levels * games)}, over {levels * games} games\n")
 
 def main():
     if len(sys.argv) != 4:
