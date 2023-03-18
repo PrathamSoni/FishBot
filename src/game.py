@@ -40,7 +40,6 @@ class Game:
             player.set_team(1)
 
         self.turn = random.choice(range(n))
-        self.history = np.zeros((0, 4))
 
         self.card_tracker = torch.ones((n, deck_size), dtype=torch.int)
         self.cumulative_reward = 0
@@ -108,7 +107,6 @@ class Game:
             self.negative_asks[i] += 1
 
         # print(f"Info this turn: {self.card_tracker}")
-        self.history = np.concatenate([self.history, info])
         return toReturn
 
     def declare(self, declare_dict, j):
