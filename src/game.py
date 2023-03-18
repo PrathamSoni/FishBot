@@ -171,6 +171,7 @@ class Game:
     def step(self, policy):
         # want to print reward and action taken
         i = self.turn
+        valid_declares(i, self.players[i].cards, self.card_tracker)
         ask_action = policies.ask(self)
         reward_dict = defaultdict(int)
         success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS

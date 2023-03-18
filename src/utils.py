@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass
 from typing import Optional
+from collections import defaultdict
 
 import torch
 
@@ -88,4 +89,38 @@ def valid_asks(iam, mycards, matrix):
     suits_mask = _suits_mask(mycards)
     region_of_interest = matrix[enemies, :].flatten()
     askable = torch.mul(region_of_interest, suits_mask).bool()
+    return EYE[askable]
+
+def valid_declares(iam, mycards, matrix):
+    allies = TEAM0 if iam < 3 else ~TEAM0
+    allies[iam] = False
+    enemies = TEAM0 if iam >= 3 else ~TEAM0
+    enemies_have_card = torch.sum(matrix[enemies], dim=1)
+    suits_to_declare = [torch.sum(enemies_have_card[cards_of_suit(i)]) for i in range(num_suits)]
+    all_declares = []
+    for suit in suits_to_declare:
+        import pdb; pdb.set_trace()
+        possible = [{}]
+        for card in cards_of_suit(suit):
+            if card in mycards:
+                for d in possible:
+                    d[card] = iam
+            else:
+                havers = torch.nonzero(matrix[allies, card])
+                if len(havers) == 0:
+                    break
+                new_possibles = []
+                for h in havers:
+                    for p in possible:
+                        new_p = p.copy()
+                        new_p[h.item()] = card
+                        new_possibles.append(new_p)
+                possible = new_possibles
+        if len(possible[0]) != 0:
+            all_declares += possible
+    return all_declares
+
+
+
+
     return EYE[askable]
