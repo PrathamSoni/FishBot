@@ -27,6 +27,7 @@ def train(games, lr, outfile, writer):
     all_declares = [0] * 4
     our_guy_reward = 0
     our_guy_turns = 0
+    game_loss = 0
 
     for g in range(games):
         print(f"Game {g}")
@@ -49,6 +50,9 @@ def train(games, lr, outfile, writer):
                 true_reward = torch.tensor(FAILS)
 
             loss = criterion(true_reward, action.score)
+
+            writer.add_scalar("Step Loss", loss, (g + 1) * (steps + 1))
+
             loss.backward()
             optimizer.step()
 
@@ -93,6 +97,7 @@ def train(games, lr, outfile, writer):
 
             # Log the loss to TensorBoard
             writer.add_scalar("Loss", loss, (g + 1))
+            writer.add_scalar("Game Loss", game_loss, (g + 1))
             writer.add_scalar("Game Score", game.score, (g + 1))
 
             writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
