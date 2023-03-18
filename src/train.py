@@ -30,7 +30,7 @@ def train(games, lr, outfile, writer):
     our_guy_turns = 0
 
     for g in range(games):
-        print(f"Game {g}")
+        # print(f"Game {g}")
         steps = 0
         game = Game(n)
 
@@ -56,7 +56,7 @@ def train(games, lr, outfile, writer):
             loss.backward()
             optimizer.step()
 
-            if steps == 200:
+            if steps == 1000:
                 break
 
         optimizer.zero_grad()
@@ -85,9 +85,9 @@ def train(games, lr, outfile, writer):
         loss.backward()
         optimizer.step()
 
-        print(f"Ending game score: {game.score}")
-        print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
-        print(f"Total positive declares: {game.positive_declares}, total negative declares: {game.negative_declares}")
+        # print(f"Ending game score: {game.score}")
+        # print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+        # print(f"Total positive declares: {game.positive_declares}, total negative declares: {game.negative_declares}")
         # Log the loss and other metrics every 'log_interval' iterations
         log_interval = 1
         if g % log_interval == (log_interval - 1):
@@ -128,7 +128,7 @@ def random_vs_random(games: int, writer: SummaryWriter):
     our_guy_turns = 0
 
     for g in range(games):
-        print(f"Game {g}")
+        # print(f"Game {g}")
         steps = 0
         game = Game(n)
         game.turn = 0
@@ -143,7 +143,7 @@ def random_vs_random(games: int, writer: SummaryWriter):
                 our_guy_reward += reward[player_id]
                 our_guy_turns += 1
 
-            if steps == 200:
+            if steps == 1000:
                 break
 
         print(f"Ending game score: {game.score}")
