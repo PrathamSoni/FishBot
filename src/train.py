@@ -65,18 +65,17 @@ def train(games, lr, outfile, writer):
         average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
 
         # Update overall statistics
-        all_asks[0] += game.positive_asks[0]
-        all_asks[1] += game.negative_asks[0]
-        all_asks[2] += sum(game.positive_asks)
-        all_asks[3] += sum(game.negative_asks)
+        all_asks[0] = game.positive_asks[0]
+        all_asks[1] = game.negative_asks[0]
+        all_asks[2] = sum(game.positive_asks)
+        all_asks[3] = sum(game.negative_asks)
 
-        all_declares[0] += game.positive_declares[0]
-        all_declares[1] += game.negative_declares[0]
-        all_declares[2] += sum(game.positive_declares)
-        all_declares[3] += sum(game.negative_declares)
+        all_declares[0] = game.positive_declares[0]
+        all_declares[1] = game.negative_declares[0]
+        all_declares[2] = sum(game.positive_declares)
+        all_declares[3] = sum(game.negative_declares)
 
         avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
-        avg_reward += avg_reward_comparison
 
         game_scores = torch.tensor([WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
                        team in team_list]).unsqueeze(-1)
@@ -87,9 +86,8 @@ def train(games, lr, outfile, writer):
         optimizer.step()
 
         print(f"Ending game score: {game.score}")
-        print(f"Average score per turn: {game.cumulative_reward / steps}")
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
-
+        print(f"Total positive declares: {game.positive_declares}, total negative declares: {game.negative_declares}")
         # Log the loss and other metrics every 'log_interval' iterations
         log_interval = 1
         if g % log_interval == (log_interval - 1):
