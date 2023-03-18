@@ -1,3 +1,5 @@
+import random
+
 from torch.nn import Module, Sequential, ReLU, Linear
 import torch.nn.functional as F
 
@@ -41,14 +43,20 @@ class MoveEval(Module):
         return self.layers(move)
 
     def ask(self, game):
-        cards = game.players[game.turn].cards
-        moves = valid_asks(game.turn, cards, game.card_tracker)
+        i = game.turn
+        cards = game.players[i].cards
+        card_tracker = game.card_tracker
+        one_hot = torch.tensor([i in cards for i in range(num_in_suit * num_suits)])
+        card_tracker = card_tracker * ~one_hot
+        card_tracker[i] = one_hot
+        moves = valid_asks(i, cards, card_tracker)
 
         m, _ = moves.shape
-        moves = torch.cat([game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), moves], dim=-1)
+        moves = torch.cat([card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), moves], dim=-1)
         scores = self.forward(moves)
-        if m==0:
-            import pdb; pdb.set_trace()
+        if m == 0:
+            import pdb;
+            pdb.set_trace()
         score = scores.max()
         move = moves[scores.argmax()]
 
@@ -66,12 +74,14 @@ class MoveEval(Module):
             to_ask=player,
             card=card,
             score=score,
-            player=game.turn,
+            player=i,
         )
 
     def declare(self, game):
         all_declares = []
-        for player in range(self.n_players):
+        players = list(range(self.n_players))
+        random.shuffle(players)
+        for player in players:
             cards = game.players[player].cards
             declares = valid_declares(player, cards, game.card_tracker)
             all_declares.extend([PolicyOutput(

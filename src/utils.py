@@ -23,8 +23,8 @@ FAILS = -1
 SUCCEEDS = 1
 GOOD_DECLARE = 10
 BAD_DECLARE = -10
-WIN_GAME = 100
-LOSE_GAME = -100
+WIN_GAME = 5
+LOSE_GAME = -5
 TEAM0 = torch.tensor([True, True, True, False, False, False], dtype=torch.bool)
 EYE = torch.eye(3 * deck_size)
 

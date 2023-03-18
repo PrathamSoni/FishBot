@@ -33,11 +33,11 @@ def train(games, lr, outfile, writer):
         print(f"Game {g}")
         steps = 0
         game = Game(n)
-        game.turn = 0
 
         team_list = []
         model.history = []
         while not game.is_over():
+            optimizer.zero_grad()
             steps += 1
             i = game.turn
             team = game.players[i].team
@@ -59,6 +59,7 @@ def train(games, lr, outfile, writer):
             if steps == 200:
                 break
 
+        optimizer.zero_grad()
         # Reward stats
         our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
         average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
@@ -294,7 +295,6 @@ def main():
     WRITER = SummaryWriter(f"runs/{OUTFILE}")
 
     train(GAMES, LR, OUTFILE, WRITER)
-    # train(GAMES, LR)
     # random_vs_random(GAMES)
     WRITER.close()
 
