@@ -59,28 +59,16 @@ def train(games, lr, outfile, writer):
         our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
         average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
 
-        # Ask stats
-        our_guy_positive_asks = game.positive_asks[0]
-        our_guy_negative_asks = game.negative_asks[0]
-        other_guy_positive_asks = sum(game.positive_asks) - game.positive_asks[0]
-        other_guy_negative_asks = sum(game.negative_asks) - game.negative_asks[0]
-
-        # Declare stats
-        our_guy_positive_declares = game.positive_declares[0]
-        our_guy_negative_declares = game.negative_declares[0]
-        other_guy_positive_declares = sum(game.positive_declares) - game.positive_declares[0]
-        other_guy_negative_declares = sum(game.negative_declares) - game.negative_declares[0]
-
         # Update overall statistics
-        all_asks[0] += our_guy_positive_asks
-        all_asks[1] += our_guy_negative_asks
-        all_asks[2] += other_guy_positive_asks
-        all_asks[3] += other_guy_negative_asks
+        all_asks[0] += game.positive_asks[0]
+        all_asks[1] += game.negative_asks[0]
+        all_asks[2] += sum(game.positive_asks)
+        all_asks[3] += sum(game.negative_asks)
 
-        all_declares[0] += our_guy_positive_declares
-        all_declares[1] += our_guy_negative_declares
-        all_declares[2] += other_guy_positive_declares
-        all_declares[3] += other_guy_negative_declares
+        all_declares[0] += game.positive_declares[0]
+        all_declares[1] += game.negative_declares[0]
+        all_declares[2] += sum(game.positive_declares)
+        all_declares[3] += sum(game.negative_declares)
 
         avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
         avg_reward += avg_reward_comparison
@@ -104,20 +92,24 @@ def train(games, lr, outfile, writer):
             # average_loss = running_loss / log_interval
 
             # Log the loss to TensorBoard
+            writer.add_scalar("Loss", loss, (g + 1))
+            writer.add_scalar("Game Score", game.score, (g + 1))
+
+            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+                              (g + 1))
+            writer.add_scalar("Declares/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+                              ((g + 1)))
+            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
+            writer.add_scalar("Asks/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
+
             # writer.add_scalar("Declares/Agent +", all_declares[0], (g + 1))
             # writer.add_scalar("Declares/Agent -", all_declares[1], (g + 1))
             # writer.add_scalar("Declares/Others +", all_declares[2], (g + 1))
             # writer.add_scalar("Declares/Others -", all_declares[3], (g + 1))
-            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
-                              (g + 1))
-            writer.add_scalar("Declares/Others + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
-                              ((g + 1)))
             # writer.add_scalar("Asks/Agent +", all_asks[0], (g + 1))
             # writer.add_scalar("Asks/Agent -", all_asks[1], (g + 1))
             # writer.add_scalar("Asks/Others +", all_asks[2], (g + 1))
             # writer.add_scalar("Asks/Others -", all_asks[3], (g + 1))
-            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
-            writer.add_scalar("Asks/Others + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
 
 def random_vs_random(games: int):
     n = 6
