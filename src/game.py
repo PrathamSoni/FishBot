@@ -1,15 +1,10 @@
 import random
+from collections import defaultdict
 
 import numpy as np
 
 from policy import Policy
-from utils import deck_size, num_in_suit, get_suit, deal
-
-ILLEGAL = -10000
-FAILS = -1
-SUCCEEDS = 1
-GOOD_DECLARE = 10
-BAD_DECLARE = -10
+from utils import *
 
 
 class Player:
@@ -72,11 +67,11 @@ class Game:
 
         if not ((i < self.n // 2) ^ (j < self.n // 2)):
             print(f"Player {i} and Player {j} are on the same team.")
-            return ILLEGAL
+            raise ValueError()
 
         if self.cards[card] == -1:
             print(f"Card {card} already declared.")
-            return ILLEGAL
+            raise ValueError()
 
         requester = self.players[i]
         requested = self.players[j]
@@ -88,11 +83,11 @@ class Game:
         if not any([suit == get_suit(own) for own in requester.cards]):
             # print(f"Player {i} does not have suit")
             self.turn = j
-            return ILLEGAL
+            raise ValueError()
         if card in requester.cards:
             print(f"Player {i} already has card")
             self.turn = j
-            return ILLEGAL
+            raise ValueError()
 
         toReturn = FAILS
         if self.cards[card] == j:
@@ -125,18 +120,15 @@ class Game:
                 # print(f"Player {i} is declaring {suit}.")
             elif get_suit(card) != suit:
                 print("Not all cards in same suit")
-                return ILLEGAL
+                raise ValueError()
 
         if len(declare_dict) != num_in_suit:
             print(f"Must declare exactly {num_in_suit} cards.")
-            return ILLEGAL
-
-        if suit in self.declared_suites:
-            print(self)
-            print(f"Suit already declared")
             raise ValueError()
 
-            return ILLEGAL
+        if suit in self.declared_suites:
+            print(f"Suit already declared")
+            raise ValueError()
 
         # validate team
         teammates = set(declare_dict.values())
@@ -144,7 +136,7 @@ class Game:
         same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
-            return ILLEGAL
+            raise ValueError()
 
         correct = True
         for card, owner in declare_dict.items():
@@ -176,16 +168,20 @@ class Game:
                 return False
         return True
 
-    def step(self, policy):
+    def step(self, policies):
         # want to print reward and action taken
         i = self.turn
-        action = policy.choose(self)
-        if action.is_declare:
-            reward = self.declare(action.declare_dict)
-        else:
-            reward = self.asks(action.to_ask, action.card)
+        action = policies[i].ask(self)
+        reward_dict = defaultdict(int)
+        reward_dict[i] += self.asks(action.to_ask, action.card)
+
+        for i, policy in enumerate(policies):
+            action = policy.declare(self)
+            while action is not None:
+                action = policy.declare(self)
+                reward_dict[i] += self.declare(action.declare_dict)
+
         # print(reward, action)
-        self.cumulative_reward += reward
         self.n_rounds += 1
         if self.turn == i and len(self.players[i].cards) == 0 and not self.is_over():
             team = self.players[i].team
@@ -200,7 +196,7 @@ class Game:
                                          len(self.players[j].cards) > 0]
                 self.turn = random.choice(other_team_with_cards)
 
-        return reward, action
+        return reward_dict, action
 
 
 def core_gameplay_loop(game, policies):

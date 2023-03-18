@@ -10,70 +10,39 @@ from expert_model import RecurrentTrainer2
 from game import Game
 from policy import RandomPolicy
 from models import RecurrentTrainer
+from move_eval import MoveEval
 
-'''
+
 # Currently not in use. This is the old training loop.
 def train(games, batch_size, gamma, tau, lr):
     n = 6
     # Select trainer here
-    # trainers = [RecurrentTrainer2(i) for i in range(n)]
-    trainers = [RecurrentTrainer(i, tau) for i in range(n)]
-    optimizers = [optim.AdamW(trainer.policy_net.parameters(), lr=lr, amsgrad=True) for trainer in trainers]
+    models = [MoveEval(i, tau) for i in range(n)]
+    optimizers = [optim.AdamW(model.parameters(), lr=lr, amsgrad=True) for model in models]
 
     for g in range(games):
         print(f"Game {g}")
         steps = 0
         game = Game(n)
         game.turn = 0
-        losses = [0] * n
-        rewards = [0] * n
-        last_state = [None] * n
+
         while not game.is_over():
             steps += 1
-            player_id = game.turn
-            trainer = trainers[player_id]
-            optimizer = optimizers[player_id]
+            reward_dict, action = game.step(models)
 
-            if (last := last_state[player_id]) is not None:
-                optimizer.zero_grad()
-                Q, reward = last
-
-                with torch.no_grad():
-                    next_action_score = 0
-                    if not game.is_over():
-                        next_action = trainer.target_net.choose(game)
-                        next_action_score = next_action.score
-
-                # Compute the expected Q values
-                Q_prime = (next_action_score * gamma) + torch.tensor([reward])
-                # print(Q, next_action_score, reward, Q_prime)
-                criterion = nn.SmoothL1Loss()
-                loss = criterion(Q.unsqueeze(-1), Q_prime)
-                loss.backward()
-                torch.nn.utils.clip_grad_value_(trainer.policy_net.parameters(), 100)
-                optimizer.step()
-
-                trainer.update_target()
-
-            reward, action = game.step(trainer.policy_net)
-            rewards[player_id] += int(reward > 0)
-            last_state[player_id] = (action.score, reward)
-
-            if steps == 100:
+            if steps == 200:
                 break
 
-        print(game.score, steps, rewards)
         print(f"Ending game score: {game.score}")
         print(f"Average score per turn: {game.cumulative_reward / steps}")
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
-'''
 
 
 def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
     n = 6
     # our_guy = RecurrentTrainer(0, tau)
-    our_guy = RecurrentTrainer(0)
+    our_guy = RecurrentTrainer2(0, tau)
 
     other_guy = RandomPolicy()
     optimizer = optim.AdamW(our_guy.policy_net.parameters(), lr=lr, amsgrad=True)
@@ -85,7 +54,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
     for level in range(levels):
         print(f"Level {level}")
         for g in range(games):
-            print(f"Game {g}")
+            # print(f"Game {g}")
             steps = 0
             game = Game(n)
             loss = 0
@@ -113,7 +82,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
                         criterion = nn.SmoothL1Loss()
                         loss = criterion(Q.unsqueeze(-1), Q_prime)
                         loss.backward()
-                        torch.nn.utils.clip_grad_value_(our_guy.policy_net.parameters(), 100)
+                        torch.nn.utils.clip_grad_value_(our_guy.policy_net.parameters(), 1)
                         optimizer.step()
 
                         our_guy.update_target()
@@ -127,7 +96,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
                     setattr(other_guy, "i", torch.tensor([game.turn]))
                     game.step(other_guy)
 
-                if steps == 10000:
+                if steps == 100:
                     break
 
             # Reward stats
@@ -202,6 +171,7 @@ def levels_train(levels, games, batch_size, gamma, tau, lr, outfile):
 
 
 def main():
+    # torch.autograd.set_detect_anomaly(True)
     if len(sys.argv) != 4:
         raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
     # Set with params
@@ -210,9 +180,9 @@ def main():
     GAMES = int(sys.argv[3])
 
     BATCH_SIZE = 4
-    GAMMA = .99
-    TAU = .005
-    LR = 1e-2
+    GAMMA = .9
+    TAU = .0001
+    LR = 1e-4
     levels_train(LEVELS, GAMES, BATCH_SIZE, GAMMA, TAU, LR, OUTFILE)
 
 

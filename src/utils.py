@@ -12,6 +12,14 @@ CONVERT_DICT = {0: [0, 1, 2, 3, 4, 5],
                 5: [5, 3, 4, 0, 1, 2],
                 }
 
+ILLEGAL = -10000
+FAILS = -1
+SUCCEEDS = 1
+GOOD_DECLARE = 10
+BAD_DECLARE = -10
+WIN_GAME = 100
+LOSE_GAME = -100
+
 
 def deal():
     deck = list(range(deck_size))
@@ -56,3 +64,8 @@ class PolicyOutput:
             return str(self.declare_dict)
         else:
             return str([self.to_ask, self.card])
+
+
+def normalize(score):
+    return 2 * score / (score.max() - score.min()) - 1 - 2 * score.min() / (
+            score.max() - score.min())
