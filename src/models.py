@@ -1,14 +1,11 @@
-import random
-
 import torch
-from torch.nn import LSTM, Module, Embedding, Linear
+from torch.nn import LSTM, Module, Embedding, Linear, BatchNorm1d
 
-from game import Game
-from utils import deck_size, num_suits, num_in_suit, suit_splice, get_suits_hand, PolicyOutput, cards_of_suit
+from utils import *
 
 
 class RecurrentPlayer(Module):
-    def __init__(self, i, embedding_dim=10, n_players=6, declare_threshold=.99):
+    def __init__(self, i, embedding_dim=10, n_players=6):
         super().__init__()
         self.i = torch.tensor([i])
         self.embedding_dim = embedding_dim
@@ -16,16 +13,17 @@ class RecurrentPlayer(Module):
 
         self.cards_embedding = Embedding(deck_size, embedding_dim)
         self.players_embedding = Embedding(n_players, embedding_dim)
-        self.history_embedding = LSTM(2 * embedding_dim + 1, embedding_dim)
+        self.history_embedding = LSTM(3 * embedding_dim + 1, embedding_dim)
 
-        self.hidden_dims =  embedding_dim + 2
+        self.hidden_dims = 2 * embedding_dim + 2
+
+        self.final_embedding_layer = Linear(self.hidden_dims, self.hidden_dims)
 
         self.asking_player_layer = Linear(self.hidden_dims, n_players // 2)
         self.declaring_player_layer = Linear(self.hidden_dims, n_players // 2)
         self.asking_cards_layer = Linear(self.hidden_dims, deck_size)
         self.declaring_cards_layer = Linear(self.hidden_dims, deck_size)
-
-        self.declare_threshold = declare_threshold
+        self.suit_scorer = Linear(num_in_suit, 1)
 
     def generate_embedding(self, score, history, cards):
         if cards.shape[0] == 0:
@@ -41,70 +39,73 @@ class RecurrentPlayer(Module):
         asking_players_embedding = self.players_embedding(asking_players)
         asked_players_embedding = self.players_embedding(asked_players)
         asked_cards_embedding = self.cards_embedding(asked_cards)
-        # history_input = torch.relu(torch.concatenate(
-        #     [asking_players_embedding, asked_players_embedding, asked_cards_embedding, success], dim=1))
-        #
-        # if history_input.shape[0] == 0:
-        #     history_features = torch.zeros(self.embedding_dim)
-        # else:
-        #     history_features = torch.relu(self.history_embedding(history_input)[0][-1])
+        history_input = torch.relu(torch.concatenate(
+            [asking_players_embedding, asked_players_embedding, asked_cards_embedding, success], dim=1))
 
-        final_embedding = torch.relu(torch.concatenate([own_cards, score, self.i]))
+        if history_input.shape[0] == 0:
+            history_features = torch.zeros(self.embedding_dim)
+        else:
+            history_features = torch.relu(self.history_embedding(history_input)[0][-1])
+
+        final_embedding = torch.concatenate([own_cards, history_features, score, self.i])
         return final_embedding
 
     def forward(self, score, history, cards, declared_suits):
         n, _ = history.shape
         final_embedding = self.generate_embedding(score, history, cards)
-        asking_cards_pred = self.asking_cards_layer(final_embedding)
-        declaring_cards_pred = self.declaring_cards_layer(final_embedding)
+        final_embedding = torch.relu(self.final_embedding_layer(final_embedding))
 
-        asking_player_pred = self.asking_player_layer(final_embedding)
+        asking_cards_pred = torch.tanh(self.asking_cards_layer(final_embedding))
+        asking_player_pred = torch.tanh(self.asking_player_layer(final_embedding))
         ask_matrix = asking_player_pred.unsqueeze(0).T @ asking_cards_pred.unsqueeze(0)
+        ask_matrix = normalize(ask_matrix) * SUCCEEDS
 
         hand = cards.tolist()
         allowable = [cards_of_suit(suit) for suit in get_suits_hand(hand)]
         allowable = set([item for sublist in allowable for item in sublist])
         not_allowable = list(set(range(deck_size)) - allowable)
-        ask_matrix[:, hand] = -torch.inf
-        ask_matrix[:, not_allowable] = -torch.inf
-        ask_matrix = torch.sigmoid(ask_matrix)
-        ask_matrix = ask_matrix / ask_matrix.sum()
+        ask_matrix[:, hand] = -SUCCEEDS
+        ask_matrix[:, not_allowable] = -SUCCEEDS
         ask_score = ask_matrix.max()
         ask = (ask_matrix == torch.max(ask_matrix)).nonzero().squeeze().tolist()
 
-        declaring_player_pred = self.declaring_player_layer(final_embedding)
-        declare_matrix = declaring_player_pred.unsqueeze(0).T @ declaring_cards_pred.unsqueeze(0)
+        declaring_cards_pred = torch.tanh((self.declaring_cards_layer(final_embedding)))
+        declaring_player_pred = torch.tanh(self.declaring_player_layer(final_embedding))
+        declare_matrix = declaring_player_pred.unsqueeze(0).T @ declaring_cards_pred.unsqueeze(0)  # raw score
+        declare_matrix = normalize(declare_matrix)
         player_mod = self.i % (self.n_players // 2)
-        declare_matrix[player_mod, hand] = torch.inf
+        declare_matrix[player_mod, hand] = 1
         other_players = torch.tensor([i for i in range(self.n_players // 2) if i != player_mod]).unsqueeze(-1)
-        declare_matrix[other_players, hand] = -torch.inf
+        declare_matrix[other_players, hand] = -1
 
         declare_matrix = declare_matrix.reshape((self.n_players // 2, num_suits, num_in_suit))
-        declare_matrix[:, declared_suits, :] = -torch.inf
-        score_matrix, args = declare_matrix.max(dim=0)
-        suit_scores = torch.sigmoid(score_matrix)
-        suit_scores = suit_scores / suit_scores.sum()
-        suit_scores = suit_scores.prod(dim=1)
+        suit_scores, args = declare_matrix.max(dim=0)
+        suit_scores = normalize(self.suit_scorer(suit_scores)) * GOOD_DECLARE
+        suit_scores[declared_suits] = -GOOD_DECLARE
 
-        if torch.all(torch.isnan(suit_scores)) or suit_scores.sum().item()==0:
+        if torch.all(torch.isnan(suit_scores)) or suit_scores.sum().item() == 0:
             suit = random.choice(list(set(range(num_suits)) - set(declared_suits.tolist())))
         else:
             suit = suit_scores.argmax().item()
 
-        declare_score = torch.pow(suit_scores.max(), 15/(n+1))
+        declare_score = suit_scores.max()
         owners = args[suit]
-
+        # print(ask_score, declare_score)
+        if torch.isnan(ask_score + declare_score):
+            import pdb;
+            pdb.set_trace()
         # if no cards you must declare
-        if cards.shape[0] == 0 or declare_score > ask_score or len(ask) == 0:
+        if cards.shape[0] == 0 or declare_score > ask_score * GOOD_DECLARE / SUCCEEDS or len(ask) == 0:
             if suit in declared_suits:
-                print(suit, declared_suits, cards, declare_matrix.reshape(3, 9, 6), suit_scores)
-                raise ValueError()
+                suit = random.choice(list(set(range(num_suits)) - set(declared_suits.tolist())))
+                owners = args[suit]
+
             if self.i >= self.n_players // 2:
                 owners = owners + self.n_players // 2
 
             return True, {card: owner for card, owner in
                           zip(range(suit * num_in_suit, (suit + 1) * num_in_suit),
-                              owners.tolist())}, declare_score * 10
+                              owners.tolist())}, declare_score
 
         else:
             try:
@@ -142,8 +143,8 @@ class RecurrentPlayer(Module):
 
 class RecurrentTrainer:
     def __init__(self, i, tau=.005, *args, **kwargs):
-        self.policy_net = RecurrentPlayer(i, *args, **kwargs)
-        self.target_net = RecurrentPlayer(i, *args, **kwargs)
+        self.policy_net = RecurrentPlayer(i, **kwargs)
+        self.target_net = RecurrentPlayer(i, **kwargs)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.tau = tau
 
