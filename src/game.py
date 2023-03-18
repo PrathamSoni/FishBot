@@ -63,7 +63,7 @@ class Game:
 
     def asks(self, j, card):
         i = self.turn
-        print(f"Player {i} asked Player {j} for {card}")
+        # print(f"Player {i} asked Player {j} for {card}")
 
         if not ((self.players[i].team == 0) ^ (self.players[j].team == 0)):
             print(f"Player {i} and Player {j} are on the same team.")
@@ -115,7 +115,7 @@ class Game:
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
-                print(f"Player {self.turn} is declaring {suit}.")
+                # print(f"Player {j} is declaring {suit}.")
             elif get_suit(card) != suit:
                 print("Not all cards in same suit")
                 raise ValueError()
@@ -125,7 +125,6 @@ class Game:
             raise ValueError()
 
         if suit in self.declared_suites:
-            print(self.declared_suites, suit)
             print(f"Suit already declared")
             raise ValueError()
 
@@ -159,6 +158,8 @@ class Game:
             self.positive_declares[j] += 1
         else:
             self.negative_declares[j] += 1
+
+        self.card_tracker[:, suit_splice(suit)] = 0
         return GOOD_DECLARE if correct else BAD_DECLARE
 
     def is_over(self):
@@ -177,12 +178,21 @@ class Game:
         ask_action.success = success
 
         actions = policy.declare(self)
-        for action in actions:
-            reward_dict[i] += self.declare(action.declare_dict, action.player)
+        while len(actions) > 0 and not self.is_over():
+            for action in actions:
+                declare_dict = action.declare_dict
+                if get_suit(list(declare_dict.keys())[0]) in self.declared_suites:
+                    continue
+                reward_dict[i] += self.declare(declare_dict, action.player)
+                for i in range(self.n):
+                    if len(self.players[i].cards) == 0:
+                        self.card_tracker[i] = 0
+            actions = policy.declare(self)
+
 
         # print(reward, action)
         self.n_rounds += 1
-        if self.turn == i and len(self.players[i].cards) == 0 and not self.is_over():
+        if len(self.players[self.turn].cards) == 0 and not self.is_over():
             team = self.players[i].team
             same_team_with_cards = [j for j in range(team * (self.n // 2), (team + 1) * (self.n // 2)) if
                                     len(self.players[j].cards) > 0]

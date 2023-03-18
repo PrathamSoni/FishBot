@@ -1,3 +1,4 @@
+import itertools
 import random
 from dataclasses import dataclass
 from typing import Optional
@@ -70,9 +71,9 @@ class PolicyOutput:
 
     def __repr__(self):
         if self.is_declare:
-            return str(self.declare_dict)
+            return str(f"player {self.player} ") + str(self.declare_dict)
         else:
-            return str([self.to_ask, self.card])
+            return str(f"player {self.player} ") + str([self.to_ask, self.card])
 
 
 def normalize(score):
@@ -93,38 +94,26 @@ def valid_asks(iam, mycards, matrix):
     askable = torch.mul(region_of_interest, suits_mask_).bool()
     return EYE[askable]
 
+
 def valid_declares(iam, mycards, matrix):
-    pass
-    # allies = TEAM0 if iam < 3 else ~TEAM0
-    # allies[iam] = False
-    # enemies = TEAM0 if iam >= 3 else ~TEAM0
-    # enemies_have_card = torch.sum(matrix[enemies], dim=1)
-    # suits_to_declare = [torch.sum(enemies_have_card[cards_of_suit(i)]) for i in range(num_suits)]
-    # extremely haram portion of quesitonable veracity
-    # all_declares = []
-    # for suit in suits_to_declare:
-    #     import pdb; pdb.set_trace()
-    #     possible = [{}]
-    #     for card in cards_of_suit(suit):
-    #         if card in mycards:
-    #             for d in possible:
-    #                 d[card] = iam
-    #         else:
-    #             havers = torch.nonzero(matrix[allies, card])
-    #             if len(havers) == 0:
-    #                 break
-    #             new_possibles = []
-    #             for h in havers:
-    #                 for p in possible:
-    #                     new_p = p.copy()
-    #                     new_p[h.item()] = card
-    #                     new_possibles.append(new_p)
-    #             possible = new_possibles
-    #     if len(possible[0]) != 0:
-    #         all_declares += possible
-    # return all_declares
+    allies = TEAM0 if iam < 3 else ~TEAM0
+    enemies = TEAM0 if iam >= 3 else ~TEAM0
 
+    one_hot = torch.tensor([i in mycards for i in range(num_in_suit * num_suits)])
+    m = matrix * ~one_hot
+    m[iam] = one_hot
+    m = m.view(-1, num_suits, num_in_suit)
+    enemies_have_card = m[enemies, :, :].sum(dim=2).sum(dim=0)
+    suits_to_declare = (enemies_have_card == 0).nonzero().flatten().tolist()
 
+    all_declares = []
+    for suit in suits_to_declare:
+        all_combos = list(itertools.product(*[m[allies, suit, i].nonzero()[:, 0].tolist() for i in range(num_in_suit)]))
+        if len(all_combos) > 0:
+            choice = random.choice(all_combos)
+            if iam >= 3:
+                choice = [c + 3 for c in choice]
+            # print(iam, choice)
+            all_declares.append(dict(zip(cards_of_suit(suit), choice)))
 
-
-    # return EYE[askable]
+    return all_declares

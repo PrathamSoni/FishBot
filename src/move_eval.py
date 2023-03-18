@@ -47,9 +47,10 @@ class MoveEval(Module):
         m, _ = moves.shape
         moves = torch.cat([game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), moves], dim=-1)
         scores = self.forward(moves)
-
+        if m==0:
+            import pdb; pdb.set_trace()
         score = scores.max()
-        move = moves[score.argmax()]
+        move = moves[scores.argmax()]
 
         self.history.append(move)
         move = move[-game.n // 2 * num_in_suit * num_suits:]
@@ -72,7 +73,7 @@ class MoveEval(Module):
         all_declares = []
         for player in range(self.n_players):
             cards = game.players[player].cards
-            declares = valid_declares(game.turn, cards, game.card_tracker)
+            declares = valid_declares(player, cards, game.card_tracker)
             all_declares.extend([PolicyOutput(
                 is_declare=True,
                 declare_dict=valid_declare,

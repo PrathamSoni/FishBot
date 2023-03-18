@@ -29,6 +29,7 @@ def train(games, lr, outfile, writer):
         game.turn = 0
 
         team_list = []
+        model.history = []
         while not game.is_over():
             steps += 1
             i = game.turn
@@ -37,9 +38,9 @@ def train(games, lr, outfile, writer):
             team_list.append(team)
 
             if action.success:
-                true_reward = torch.tensor([SUCCEEDS])
+                true_reward = torch.tensor(SUCCEEDS)
             else:
-                true_reward = torch.tensor([FAILS])
+                true_reward = torch.tensor(FAILS)
 
             loss = criterion(true_reward, action.score)
             loss.backward()
@@ -49,9 +50,9 @@ def train(games, lr, outfile, writer):
                 break
 
         game_scores = torch.tensor([WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
-                       team in team_list])
+                       team in team_list]).unsqueeze(-1)
 
-        game_output = model(torch.tensor(model.history))
+        game_output = model(torch.stack(model.history, dim=0))
         loss = criterion(game_scores, game_output)
         loss.backward()
         optimizer.step()
