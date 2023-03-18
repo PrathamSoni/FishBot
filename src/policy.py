@@ -3,7 +3,10 @@ from utils import PolicyOutput, cards_of_same_suit, get_suits_hand, cards_of_sui
 
 
 class Policy:
-    def choose(self, game) -> PolicyOutput:
+    def ask(self, game) -> PolicyOutput:
+        pass
+
+    def declare(self, game) -> list[PolicyOutput]:
         pass
 
 
@@ -23,7 +26,7 @@ class RandomPolicy(Policy):
         cards = list(cards_of_suits - cards_in_hand)
 
         action = PolicyOutput()
-        if random.random() < self.declare_threshold or len(list(game.players[game.turn].cards)) == 0 or len(cards)==0:
+        if random.random() < self.declare_threshold or len(list(game.players[game.turn].cards)) == 0 or len(cards) == 0:
             action.is_declare = True
             card_choose = random.choice([x for x in game.cards if game.cards[x] > -1])
             to_declare = cards_of_same_suit(card_choose)
@@ -34,3 +37,9 @@ class RandomPolicy(Policy):
             action.to_ask = random.choice(r)
             action.card = random.choice(cards)
         return action
+
+    def ask(self, game):
+        pass
+
+    def declare(self, game):
+        pass
