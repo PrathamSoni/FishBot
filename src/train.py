@@ -15,7 +15,6 @@ from move_eval import MoveEval
 
 from torch.utils.tensorboard import SummaryWriter
 
-# Currently not in use. This is the old training loop.
 def train(games, batch_size, gamma, tau, lr):
     n = 6
     # Select trainer here
@@ -40,7 +39,7 @@ def train(games, batch_size, gamma, tau, lr):
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
 
 
-def levels_train(levels, games, gamma, lr, outfile, writer):
+def levels_train(levels, games, gamma, tau, lr, outfile, writer):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
     n = 6
     # our_guy = RecurrentTrainer(0, tau)
@@ -184,10 +183,11 @@ def main():
 
     GAMMA = .9
     LR = 1e-4
+    TAU = .0001
 
     WRITER = SummaryWriter(f"runs/{OUTFILE}")
 
-    levels_train(LEVELS, GAMES, GAMMA, LR, OUTFILE, WRITER)
+    levels_train(LEVELS, GAMES, GAMMA, TAU, LR, OUTFILE, WRITER)
 
     WRITER.close()
 
