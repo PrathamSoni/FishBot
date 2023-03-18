@@ -62,6 +62,7 @@ def convert(iam, heis):
 class PolicyOutput:
     is_declare: bool
     score: torch.Tensor
+    player: int
     declare_dict: Optional[dict] = None
     to_ask: Optional[int] = None
     card: Optional[int] = None
@@ -78,17 +79,18 @@ def normalize(score):
     return 2 * score / (score.max() - score.min()) - 1 - 2 * score.min() / (
             score.max() - score.min())
 
-def _suits_mask(mycards):
+
+def suits_mask(mycards):
     suits = get_suits_hand(mycards)
-    return torch.tensor([int(i // num_in_suit in suits and i not in mycards) 
+    return torch.tensor([int(i // num_in_suit in suits and i not in mycards)
                          for i in range(deck_size)] * 3, dtype=torch.int)
 
 
 def valid_asks(iam, mycards, matrix):
     enemies = TEAM0 if iam >= 3 else ~TEAM0
-    suits_mask = _suits_mask(mycards)
+    suits_mask_ = suits_mask(mycards)
     region_of_interest = matrix[enemies, :].flatten()
-    askable = torch.mul(region_of_interest, suits_mask).bool()
+    askable = torch.mul(region_of_interest, suits_mask_).bool()
     return EYE[askable]
 
 def valid_declares(iam, mycards, matrix):
@@ -97,27 +99,28 @@ def valid_declares(iam, mycards, matrix):
     enemies = TEAM0 if iam >= 3 else ~TEAM0
     enemies_have_card = torch.sum(matrix[enemies], dim=1)
     suits_to_declare = [torch.sum(enemies_have_card[cards_of_suit(i)]) for i in range(num_suits)]
-    all_declares = []
-    for suit in suits_to_declare:
-        import pdb; pdb.set_trace()
-        possible = [{}]
-        for card in cards_of_suit(suit):
-            if card in mycards:
-                for d in possible:
-                    d[card] = iam
-            else:
-                havers = torch.nonzero(matrix[allies, card])
-                if len(havers) == 0:
-                    break
-                new_possibles = []
-                for h in havers:
-                    for p in possible:
-                        new_p = p.copy()
-                        new_p[h.item()] = card
-                        new_possibles.append(new_p)
-                possible = new_possibles
-        if len(possible[0]) != 0:
-            all_declares += possible
+    # extremely haram portion of quesitonable veracity
+    # all_declares = []
+    # for suit in suits_to_declare:
+    #     import pdb; pdb.set_trace()
+    #     possible = [{}]
+    #     for card in cards_of_suit(suit):
+    #         if card in mycards:
+    #             for d in possible:
+    #                 d[card] = iam
+    #         else:
+    #             havers = torch.nonzero(matrix[allies, card])
+    #             if len(havers) == 0:
+    #                 break
+    #             new_possibles = []
+    #             for h in havers:
+    #                 for p in possible:
+    #                     new_p = p.copy()
+    #                     new_p[h.item()] = card
+    #                     new_possibles.append(new_p)
+    #             possible = new_possibles
+    #     if len(possible[0]) != 0:
+    #         all_declares += possible
     return all_declares
 
 
