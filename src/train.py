@@ -15,11 +15,12 @@ from utils import *
 from torch.utils.tensorboard import SummaryWriter
 
 
-def train(games, lr):
+def train(games, lr, outfile, writer):
     n = 6
     # Select trainer here
-    models = [MoveEval(i) for i in range(n)]
-    optimizers = [optim.AdamW(model.parameters(), lr=lr, amsgrad=True) for model in models]
+    model = MoveEval()
+    optimizer = optim.AdamW(model.parameters(), lr=lr, amsgrad=True)
+    criterion = nn.SmoothL1Loss()
 
     for g in range(games):
         print(f"Game {g}")
@@ -32,9 +33,8 @@ def train(games, lr):
             steps += 1
             i = game.turn
             team = game.players[i].team
-            reward_dict, action = game.step(models)
+            reward_dict, action = game.step(model)
             team_list.append(team)
-            criterion = nn.SmoothL1Loss()
 
             if action.success:
                 true_reward = torch.tensor([SUCCEEDS])
@@ -43,12 +43,18 @@ def train(games, lr):
 
             loss = criterion(true_reward, action.score)
             loss.backward()
-            optimizers[i].step()
+            optimizer.step()
 
             if steps == 200:
                 break
 
-        # game_scores = [WIN_GAME if ]
+        game_scores = torch.tensor([WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
+                       team in team_list])
+
+        game_output = model(torch.tensor(model.history))
+        loss = criterion(game_scores, game_output)
+        loss.backward()
+        optimizer.step()
 
         print(f"Ending game score: {game.score}")
         print(f"Average score per turn: {game.cumulative_reward / steps}")
@@ -192,8 +198,8 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
 
 def main():
     # torch.autograd.set_detect_anomaly(True)
-    if len(sys.argv) != 4:
-        raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
+    # if len(sys.argv) != 4:
+    #     raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
     # Set with params
     OUTFILE = sys.argv[1]
     GAMES = int(sys.argv[2])

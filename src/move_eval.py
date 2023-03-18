@@ -1,16 +1,19 @@
-import torch
-from torch.nn import Module
+from torch.nn import Module, Sequential, ReLU, Linear
 import torch.nn.functional as F
 
 from utils import *
 
 
 class MoveEval(Module):
-    def __init__(self, i, embedding_dim=512, n_players=6):
+    def __init__(self, hidden_dim=64, n_players=6):
         super().__init__()
-        self.i = torch.tensor([i])
-        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
         self.n_players = n_players
+
+        self.layers = Sequential(Linear(3 * n_players // 2 * num_in_suit * num_suits, hidden_dim), ReLU(),
+                                 Linear(hidden_dim, hidden_dim), ReLU(),
+                                 Linear(hidden_dim, 1))
+        self.history = []
 
     def generate_embedding(self, score, card_tracker, cards):
         tracker_clone = torch.tensor(card_tracker)
@@ -34,26 +37,47 @@ class MoveEval(Module):
         final_embedding = torch.concatenate([card_tracker_embedding, score])
         return final_embedding
 
-    def forward(self, score, card_tracker, cards):
-        final_embedding = self.generate_embedding(score, card_tracker, cards)
+    def forward(self, move):
+        return self.layers(move)
 
-    def asks(self, game):
-        score = torch.tensor([game.score], dtype=torch.long)
-        cards = torch.tensor(list(game.players[self.i].cards))
-        card_tracker = game.card_tracker
+    def ask(self, game):
+        cards = game.players[game.turn].cards
+        moves = valid_asks(game.turn, cards, game.card_tracker)
 
-        declare, pred, score = self.forward(score, card_tracker, cards)
+        m, _ = moves.shape
+        moves = torch.cat([game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), moves], dim=-1)
+        scores = self.forward(moves)
+
+        score = scores.max()
+        move = moves[score.argmax()]
+
+        self.history.append(move)
+        move = move[-game.n // 2 * num_in_suit * num_suits:]
+
+        coordinate = move.argmax().item()
+        player, card = divmod(coordinate, num_suits * num_in_suit)
+
+        if game.players[game.turn].team == 0:
+            player += game.n // 2
 
         return PolicyOutput(
-                is_declare=False,
-                to_ask=pred[0],
-                card=pred[1],
-                score=score
-            )
+            is_declare=False,
+            to_ask=player,
+            card=card,
+            score=score,
+            player=game.turn,
+        )
 
-    def declares(self, game):
-        return PolicyOutput(
+    def declare(self, game):
+        all_declares = []
+        for player in range(self.n_players):
+            cards = game.players[player].cards
+            declares = valid_declares(game.turn, cards, game.card_tracker)
+            all_declares.extend([PolicyOutput(
                 is_declare=True,
-                declare_dict=pred,
-                score=GOOD_DECLARE
-            )
+                declare_dict=valid_declare,
+                score=GOOD_DECLARE,
+                player=player
+            ) for valid_declare in declares])
+
+        return all_declares

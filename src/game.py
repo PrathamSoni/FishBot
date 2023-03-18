@@ -65,7 +65,7 @@ class Game:
         i = self.turn
         # print(f"Player {i} asked Player {j} for {card}")
 
-        if not ((i < self.n // 2) ^ (j < self.n // 2)):
+        if not ((self.players[i].team == 0) ^ (self.players[j].team == 0)):
             print(f"Player {i} and Player {j} are on the same team.")
             raise ValueError()
 
@@ -109,9 +109,7 @@ class Game:
         self.history = np.concatenate([self.history, info])
         return toReturn
 
-    def declare(self, declare_dict):
-        i = self.turn
-
+    def declare(self, declare_dict, j):
         # validate cards
         suit = None
         for card in declare_dict.keys():
@@ -132,7 +130,7 @@ class Game:
 
         # validate team
         teammates = set(declare_dict.values())
-        declare_team = self.players[i].team == 0
+        declare_team = self.players[j].team == 0
         same_team = [not (declare_team ^ (self.players[teammate].team == 0)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
@@ -157,9 +155,9 @@ class Game:
 
         self.declared_suites.add(suit)
         if correct:
-            self.positive_declares[i] += 1
+            self.positive_declares[j] += 1
         else:
-            self.negative_declares[i] += 1
+            self.negative_declares[j] += 1
         return GOOD_DECLARE if correct else BAD_DECLARE
 
     def is_over(self):
@@ -171,16 +169,15 @@ class Game:
     def step(self, policy):
         # want to print reward and action taken
         i = self.turn
-        ask_action = policies.ask(self)
+        ask_action = policy.ask(self)
         reward_dict = defaultdict(int)
         success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
         reward_dict[i] += reward
         ask_action.success = success
 
-        for i, policy in enumerate(policies):
-            actions = policy.declare(self)
-            for action in actions:
-                reward_dict[i] += self.declare(action.declare_dict)
+        actions = policy.declare(self)
+        for action in actions:
+            reward_dict[i] += self.declare(action.declare_dict, action.player)
 
         # print(reward, action)
         self.n_rounds += 1
