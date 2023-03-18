@@ -178,14 +178,21 @@ class Game:
         success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
         reward_dict[i] += reward
         ask_action.success = success
+        declare_actions = []
 
         actions = policy.declare(self)
         while len(actions) > 0 and not self.is_over():
             for action in actions:
                 declare_dict = action.declare_dict
+                declare_actions.append(action)
+
                 if get_suit(list(declare_dict.keys())[0]) in self.declared_suites:
                     continue
-                reward_dict[i] += self.declare(declare_dict, action.player)
+
+                success = (reward := self.declare(declare_dict, action.player)) == GOOD_DECLARE
+                reward_dict[i] += reward
+                action.success = success
+
                 for i in range(self.n):
                     if len(self.players[i].cards) == 0:
                         self.card_tracker[i] = 0
@@ -207,7 +214,7 @@ class Game:
                                          len(self.players[j].cards) > 0]
                 self.turn = random.choice(other_team_with_cards)
 
-        return reward_dict, ask_action
+        return reward_dict, ask_action, declare_actions
 
 
 def core_gameplay_loop(game, policies):

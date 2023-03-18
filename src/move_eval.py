@@ -12,10 +12,16 @@ class MoveEval(Module):
         self.hidden_dim = hidden_dim
         self.n_players = n_players
 
-        self.layers = Sequential(Linear(3 * n_players // 2 * num_in_suit * num_suits, hidden_dim), ReLU(),
-                                 Linear(hidden_dim, hidden_dim), ReLU(),
-                                 Linear(hidden_dim, 1))
-        self.history = []
+        self.ask_layers = Sequential(Linear(3 * n_players // 2 * num_in_suit * num_suits + n_players, hidden_dim),
+                                     ReLU(),
+                                     Linear(hidden_dim, hidden_dim), ReLU(),
+                                     Linear(hidden_dim, 1))
+        self.declare_layers = Sequential(Linear(n_players * num_in_suit * num_suits + n_players + num_suits + n_players//2*num_in_suit, hidden_dim),
+                                     ReLU(),
+                                     Linear(hidden_dim, hidden_dim), ReLU(),
+                                     Linear(hidden_dim, 1))
+        self.ask_history = []
+        self.declare_history = []
 
     def generate_embedding(self, score, card_tracker, cards):
         tracker_clone = torch.tensor(card_tracker)
@@ -39,8 +45,11 @@ class MoveEval(Module):
         final_embedding = torch.concatenate([card_tracker_embedding, score])
         return final_embedding
 
-    def forward(self, move):
-        return self.layers(move)
+    def forward(self, move, type="ask"):
+        if type == "ask":
+            return self.ask_layers(move)
+        elif type == "declare":
+            return self.declare_layers(move)
 
     def ask(self, game):
         i = game.turn
@@ -52,15 +61,17 @@ class MoveEval(Module):
         moves = valid_asks(i, cards, card_tracker)
 
         m, _ = moves.shape
-        moves = torch.cat([card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), moves], dim=-1)
-        scores = self.forward(moves)
+        cards_in_hand = torch.tensor([len(game.players[i].cards) for i in range(game.n)]).expand(m, game.n)
+        moves = torch.cat([card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), cards_in_hand, moves],
+                          dim=-1)
+        scores = self(moves, "ask")
         if m == 0:
             import pdb;
             pdb.set_trace()
         score = scores.max()
         move = moves[scores.argmax()]
 
-        self.history.append(move)
+        self.ask_history.append(move)
         move = move[-game.n // 2 * num_in_suit * num_suits:]
 
         coordinate = move.argmax().item()
@@ -84,11 +95,42 @@ class MoveEval(Module):
         for player in players:
             cards = game.players[player].cards
             declares = valid_declares(player, cards, game.card_tracker)
-            all_declares.extend([PolicyOutput(
-                is_declare=True,
-                declare_dict=valid_declare,
-                score=GOOD_DECLARE,
-                player=player
-            ) for valid_declare in declares])
+
+            for suit, combos in declares.items():
+                if len(combos) == 0:
+                    continue
+
+                moves = torch.zeros((len(combos), num_suits + game.n//2*num_in_suit))
+                moves[:, suit] = 1
+                for i, combo in enumerate(combos):
+
+                    one_hot = [num_suits + j*game.n//2 + v for j, v in enumerate(combo)]
+                    if 27 in one_hot:
+                        import pdb;
+                        pdb.set_trace()
+                    moves[i, one_hot] = 1
+
+                m, _ = moves.shape
+                cards_in_hand = torch.tensor([len(game.players[i].cards) for i in range(game.n)]).expand(m, game.n)
+                moves = torch.cat(
+                    [game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), cards_in_hand, moves],
+                    dim=-1)
+                scores = self(moves, "declare")
+                score = scores.max()
+                best = scores.argmax().item()
+                move = moves[best]
+
+                self.declare_history.append(move)
+
+                assignments = combos[best]
+                if player >= 3:
+                    assignments = [c + 3 for c in assignments]
+
+                all_declares.append(PolicyOutput(
+                    is_declare=True,
+                    declare_dict=dict(zip(cards_of_suit(suit), assignments)),
+                    score=score,
+                    player=player
+                ))
 
         return all_declares

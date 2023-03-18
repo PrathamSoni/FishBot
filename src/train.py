@@ -5,6 +5,7 @@ from datetime import datetime, date
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 from expert_model import RecurrentTrainer2
 from game import Game
@@ -29,19 +30,21 @@ def train(games, lr, outfile, writer):
     our_guy_reward = 0
     our_guy_turns = 0
 
-    for g in range(games):
+    for g in tqdm(range(games)):
         # print(f"Game {g}")
         steps = 0
         game = Game(n)
 
         team_list = []
-        model.history = []
+        declare_team_list = []
+        model.ask_history = []
+        model.declare_history = []
         while not game.is_over():
             optimizer.zero_grad()
             steps += 1
             i = game.turn
             team = game.players[i].team
-            reward_dict, action = game.step(model)
+            reward_dict, action, declare_actions = game.step(model)
             team_list.append(team)
 
             if action.success:
@@ -50,8 +53,15 @@ def train(games, lr, outfile, writer):
                 true_reward = torch.tensor(FAILS)
 
             loss = criterion(true_reward, action.score)
+            writer.add_scalar("Step Ask Loss", loss, (g + 1) * (steps + 1))
 
-            writer.add_scalar("Step Loss", loss, (g + 1) * (steps + 1))
+            if len(declare_actions) > 0:
+                true_reward = torch.stack([torch.tensor(GOOD_DECLARE) if action.success else torch.tensor(BAD_DECLARE) for action in declare_actions if action.success is not None])
+                declare_scores = torch.stack([action.score for action in declare_actions if action.success is not None])
+                declare_loss = criterion(true_reward, declare_scores)
+                writer.add_scalar("Step declare Loss", declare_loss, (g + 1) * (steps + 1))
+                loss += declare_loss
+                declare_team_list.extend([game.players[action.player].team for action in declare_actions])
 
             loss.backward()
             optimizer.step()
@@ -77,11 +87,20 @@ def train(games, lr, outfile, writer):
 
         avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
 
-        game_scores = torch.tensor([WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
-                       team in team_list]).unsqueeze(-1)
+        game_scores = torch.tensor(
+            [WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
+             team in team_list]).unsqueeze(-1)
 
-        game_output = model(torch.stack(model.history, dim=0))
+        game_output = model(torch.stack(model.ask_history, dim=0), type="ask")
         loss = criterion(game_scores, game_output)
+
+        if len(model.declare_history) > 0:
+            game_scores = torch.tensor(
+                [WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
+                 team in declare_team_list]).unsqueeze(-1)
+            game_output = model(torch.stack(model.declare_history, dim=0), type="declare")
+            loss += criterion(game_scores, game_output)
+
         loss.backward()
         optimizer.step()
 
@@ -95,7 +114,8 @@ def train(games, lr, outfile, writer):
             # average_loss = running_loss / log_interval
 
             # Log the loss to TensorBoard
-            writer.add_scalar("Loss", loss, (g + 1))
+            writer.add_scalar("Game Loss", loss, (g + 1))
+            writer.add_scalar("Steps", steps, (g + 1))
             writer.add_scalar("Game Score", game.score, (g + 1))
 
             writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
@@ -113,6 +133,7 @@ def train(games, lr, outfile, writer):
             # writer.add_scalar("Asks/Agent -", all_asks[1], (g + 1))
             # writer.add_scalar("Asks/Others +", all_asks[2], (g + 1))
             # writer.add_scalar("Asks/Others -", all_asks[3], (g + 1))
+
 
 def random_vs_random(games: int, writer: SummaryWriter):
     n = 6

@@ -21,8 +21,8 @@ CONVERT_DICT = {0: [0, 1, 2, 3, 4, 5],
 ILLEGAL = -10000
 FAILS = -1
 SUCCEEDS = 1
-GOOD_DECLARE = 10
-BAD_DECLARE = -10
+GOOD_DECLARE = 2
+BAD_DECLARE = -2
 WIN_GAME = 5
 LOSE_GAME = -5
 TEAM0 = torch.tensor([True, True, True, False, False, False], dtype=torch.bool)
@@ -95,6 +95,7 @@ def valid_asks(iam, mycards, matrix):
     return EYE[askable]
 
 
+# gives a dict of suit to lists of possible declarations
 def valid_declares(iam, mycards, matrix):
     allies = TEAM0 if iam < 3 else ~TEAM0
     enemies = TEAM0 if iam >= 3 else ~TEAM0
@@ -106,14 +107,10 @@ def valid_declares(iam, mycards, matrix):
     enemies_have_card = m[enemies, :, :].sum(dim=2).sum(dim=0)
     suits_to_declare = (enemies_have_card == 0).nonzero().flatten().tolist()
 
-    all_declares = []
+    all_declares = {}
     for suit in suits_to_declare:
         all_combos = list(itertools.product(*[m[allies, suit, i].nonzero()[:, 0].tolist() for i in range(num_in_suit)]))
-        if len(all_combos) > 0:
-            choice = random.choice(all_combos)
-            if iam >= 3:
-                choice = [c + 3 for c in choice]
-            # print(iam, choice)
-            all_declares.append(dict(zip(cards_of_suit(suit), choice)))
+        # if len(all_combos) > 0:
+        all_declares[suit] = all_combos
 
     return all_declares
