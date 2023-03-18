@@ -132,8 +132,8 @@ class Game:
 
         # validate team
         teammates = set(declare_dict.values())
-        declare_team = i < self.n // 2
-        same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
+        declare_team = self.players[i].team == 0
+        same_team = [not (declare_team ^ (self.players[teammate].team == 0)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
             raise ValueError()
@@ -168,17 +168,18 @@ class Game:
                 return False
         return True
 
-    def step(self, policies):
+    def step(self, policy):
         # want to print reward and action taken
         i = self.turn
-        action = policies[i].ask(self)
+        ask_action = policies.ask(self)
         reward_dict = defaultdict(int)
-        reward_dict[i] += self.asks(action.to_ask, action.card)
+        success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
+        reward_dict[i] += reward
+        ask_action.success = success
 
         for i, policy in enumerate(policies):
-            action = policy.declare(self)
-            while action is not None:
-                action = policy.declare(self)
+            actions = policy.declare(self)
+            for action in actions:
                 reward_dict[i] += self.declare(action.declare_dict)
 
         # print(reward, action)
@@ -196,7 +197,7 @@ class Game:
                                          len(self.players[j].cards) > 0]
                 self.turn = random.choice(other_team_with_cards)
 
-        return reward_dict, action
+        return reward_dict, ask_action
 
 
 def core_gameplay_loop(game, policies):

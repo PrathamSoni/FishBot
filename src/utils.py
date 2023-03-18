@@ -1,4 +1,8 @@
 import random
+from dataclasses import dataclass
+from typing import Optional
+
+import torch
 
 deck_size = 54
 num_suits = 9
@@ -51,16 +55,17 @@ def convert(iam, heis):
     return CONVERT_DICT[iam][heis]
 
 
+@dataclass
 class PolicyOutput:
-    def __init__(self, is_declare=None, declare_dict=None, to_ask=None, card=None, score=None):
-        self.is_declare = is_declare
-        self.declare_dict = declare_dict
-        self.to_ask = to_ask
-        self.card = card
-        self.score = score
+    is_declare: bool
+    score: torch.Tensor
+    declare_dict: Optional[dict] = None
+    to_ask: Optional[int] = None
+    card: Optional[int] = None
+    success: Optional[bool] = None
 
     def __repr__(self):
-        if self.declare_dict:
+        if self.is_declare:
             return str(self.declare_dict)
         else:
             return str([self.to_ask, self.card])

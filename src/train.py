@@ -9,16 +9,16 @@ import torch.optim as optim
 from expert_model import RecurrentTrainer2
 from game import Game
 from policy import RandomPolicy
-from models import RecurrentTrainer
 from move_eval import MoveEval
-
+from utils import *
 
 from torch.utils.tensorboard import SummaryWriter
 
-def train(games, batch_size, gamma, tau, lr):
+
+def train(games, lr):
     n = 6
     # Select trainer here
-    models = [MoveEval(i, tau) for i in range(n)]
+    models = [MoveEval(i) for i in range(n)]
     optimizers = [optim.AdamW(model.parameters(), lr=lr, amsgrad=True) for model in models]
 
     for g in range(games):
@@ -27,12 +27,28 @@ def train(games, batch_size, gamma, tau, lr):
         game = Game(n)
         game.turn = 0
 
+        team_list = []
         while not game.is_over():
             steps += 1
+            i = game.turn
+            team = game.players[i].team
             reward_dict, action = game.step(models)
+            team_list.append(team)
+            criterion = nn.SmoothL1Loss()
+
+            if action.success:
+                true_reward = torch.tensor([SUCCEEDS])
+            else:
+                true_reward = torch.tensor([FAILS])
+
+            loss = criterion(true_reward, action.score)
+            loss.backward()
+            optimizers[i].step()
 
             if steps == 200:
                 break
+
+        # game_scores = [WIN_GAME if ]
 
         print(f"Ending game score: {game.score}")
         print(f"Average score per turn: {game.cumulative_reward / steps}")
@@ -138,21 +154,23 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
         if g % log_interval == (log_interval - 1):
             # Compute the average loss over the last 'log_interval' iterations
             # average_loss = running_loss / log_interval
-            
+
             # Log the loss to TensorBoard
             writer.add_scalar("Declares/Agent +", all_declares[0], (level + 1) * (g + 1))
             writer.add_scalar("Declares/Agent -", all_declares[1], (level + 1) * (g + 1))
             writer.add_scalar("Declares/Others +", all_declares[2], (level + 1) * (g + 1))
             writer.add_scalar("Declares/Others -", all_declares[3], (level + 1) * (g + 1))
-            writer.add_scalar("Declares/Agent + Rate", all_declares[0]/(all_declares[0]+all_declares[1]), (level + 1) * (g + 1))
-            writer.add_scalar("Declares/Others + Rate", all_declares[2]/(all_declares[2]+all_declares[3]), (level + 1) * (g + 1))
+            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1]),
+                              (level + 1) * (g + 1))
+            writer.add_scalar("Declares/Others + Rate", all_declares[2] / (all_declares[2] + all_declares[3]),
+                              (level + 1) * (g + 1))
             print(all_declares, all_asks)
             writer.add_scalar("Asks/Agent +", all_asks[0], (level + 1) * (g + 1))
             writer.add_scalar("Asks/Agent -", all_asks[1], (level + 1) * (g + 1))
             writer.add_scalar("Asks/Others +", all_asks[2], (level + 1) * (g + 1))
             writer.add_scalar("Asks/Others -", all_asks[3], (level + 1) * (g + 1))
-            writer.add_scalar("Asks/Agent + Rate", all_asks[0]/(all_asks[0]+all_asks[1]), (level + 1) * (g + 1))
-            writer.add_scalar("Asks/Others + Rate", all_asks[2]/(all_asks[2]+all_asks[3]), (level + 1) * (g + 1))
+            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (level + 1) * (g + 1))
+            writer.add_scalar("Asks/Others + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (level + 1) * (g + 1))
 
             # Reset the running loss
             # running_loss = 0.0
@@ -178,18 +196,16 @@ def main():
         raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
     # Set with params
     OUTFILE = sys.argv[1]
-    LEVELS = int(sys.argv[2])
-    GAMES = int(sys.argv[3])
+    GAMES = int(sys.argv[2])
 
-    GAMMA = .9
     LR = 1e-4
-    TAU = .0001
 
     WRITER = SummaryWriter(f"runs/{OUTFILE}")
 
-    levels_train(LEVELS, GAMES, GAMMA, TAU, LR, OUTFILE, WRITER)
+    train(GAMES, LR, OUTFILE, WRITER)
 
     WRITER.close()
+
 
 if __name__ == "__main__":
     main()
