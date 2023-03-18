@@ -42,7 +42,7 @@ class Game:
         self.turn = random.choice(range(n))
         self.history = np.zeros((0, 4))
 
-        self.card_tracker = np.ones((n, deck_size))
+        self.card_tracker = torch.ones((n, deck_size), dtype=torch.int)
         self.cumulative_reward = 0
         # Tracks players' asks and declares
         self.positive_asks = [0] * 6

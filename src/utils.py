@@ -1,4 +1,5 @@
 import random
+import torch
 
 deck_size = 54
 num_suits = 9
@@ -19,6 +20,8 @@ GOOD_DECLARE = 10
 BAD_DECLARE = -10
 WIN_GAME = 100
 LOSE_GAME = -100
+TEAM0 = torch.tensor([True, True, True, False, False, False], dtype=torch.bool)
+EYE = torch.eye(3 * deck_size)
 
 
 def deal():
@@ -69,3 +72,16 @@ class PolicyOutput:
 def normalize(score):
     return 2 * score / (score.max() - score.min()) - 1 - 2 * score.min() / (
             score.max() - score.min())
+
+def _suits_mask(mycards):
+    suits = get_suits_hand(mycards)
+    return torch.tensor([int(i // num_in_suit in suits and i not in mycards) 
+                         for i in range(deck_size)] * 3, dtype=torch.int)
+
+
+def valid_asks(iam, mycards, matrix):
+    enemies = TEAM0 if iam >= 3 else ~TEAM0
+    suits_mask = _suits_mask(mycards)
+    region_of_interest = matrix[enemies, :].flatten()
+    askable = torch.mul(region_of_interest, suits_mask).bool()
+    return EYE[askable]
