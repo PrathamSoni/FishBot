@@ -64,6 +64,8 @@ class Game:
     def asks(self, j, card):
         i = self.turn
         # print(f"Player {i} asked Player {j} for {card}")
+        if card is None:
+            return 0
 
         if not ((self.players[i].team == 0) ^ (self.players[j].team == 0)):
             print(f"Player {i} and Player {j} are on the same team.")

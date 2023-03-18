@@ -55,7 +55,7 @@ class RandomPolicy(Policy):
         cards = self.get_cards(game, game.turn)
         to_ask = random.choice(r)
         if not to_ask:
-            return None
+            return PolicyOutput(is_declare=False, to_ask=None, card=None, score=None, player=game.turn)
         else:
             card = random.choice(cards)
             return PolicyOutput(is_declare=False, to_ask=to_ask, card=card, score=None, player=game.turn)
@@ -66,6 +66,9 @@ class RandomPolicy(Policy):
         for player in range(game.n):
             cards = self.get_cards(game, player)
             if random.random() < self.declare_threshold or len(list(game.players[player].cards)) == 0 or len(cards) == 0:
+                if game.is_over():
+                    break
+                
                 card_choose = random.choice([x for x in game.cards if (game.cards[x] > -1)])
 
                 to_declare = cards_of_same_suit(card_choose)
@@ -77,22 +80,3 @@ class RandomPolicy(Policy):
                     break
             
         return actions
-
-        all_declares = []
-        for player in range(self.n_players):
-            cards = game.players[player].cards
-            declares = valid_declares(game.turn, cards, game.card_tracker)
-            all_declares.extend([PolicyOutput(
-                is_declare=True,
-                declare_dict=valid_declare,
-                score=GOOD_DECLARE,
-                player=player
-            ) for valid_declare in declares])
-        
-
-        return [PolicyOutput(
-                is_declare=True,
-                declare_dict=valid_declare,
-                score=GOOD_DECLARE,
-                player=player
-                ) for valid_declare in declares]

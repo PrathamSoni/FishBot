@@ -22,12 +22,12 @@ def train(games, lr, outfile, writer):
     optimizer = optim.AdamW(model.parameters(), lr=lr, amsgrad=True)
     criterion = nn.SmoothL1Loss()
 
+    # Stats
     avg_reward = 0
     all_asks = [0] * 4
     all_declares = [0] * 4
     our_guy_reward = 0
     our_guy_turns = 0
-    game_loss = 0
 
     for g in range(games):
         print(f"Game {g}")
@@ -98,7 +98,6 @@ def train(games, lr, outfile, writer):
 
             # Log the loss to TensorBoard
             writer.add_scalar("Loss", loss, (g + 1))
-            writer.add_scalar("Game Loss", game_loss, (g + 1))
             writer.add_scalar("Game Score", game.score, (g + 1))
 
             writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
@@ -117,9 +116,16 @@ def train(games, lr, outfile, writer):
             # writer.add_scalar("Asks/Others +", all_asks[2], (g + 1))
             # writer.add_scalar("Asks/Others -", all_asks[3], (g + 1))
 
-def random_vs_random(games: int):
+def random_vs_random(games: int, writer: SummaryWriter):
     n = 6
     policies = [RandomPolicy() for _ in range(n)]
+    our_guy_reward = 0
+    our_guy_turns = 0
+
+    # Stats
+    avg_reward = 0
+    all_asks = [0] * 4
+    all_declares = [0] * 4
     our_guy_reward = 0
     our_guy_turns = 0
 
@@ -142,10 +148,40 @@ def random_vs_random(games: int):
             if steps == 200:
                 break
 
-
         print(f"Ending game score: {game.score}")
         print(f"Average score per turn: {game.cumulative_reward / steps}")
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+
+        # Reward stats
+        our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
+        average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
+
+        # Update overall statistics
+        all_asks[0] += game.positive_asks[0]
+        all_asks[1] += game.negative_asks[0]
+        all_asks[2] += sum(game.positive_asks)
+        all_asks[3] += sum(game.negative_asks)
+
+        all_declares[0] += game.positive_declares[0]
+        all_declares[1] += game.negative_declares[0]
+        all_declares[2] += sum(game.positive_declares)
+        all_declares[3] += sum(game.negative_declares)
+
+        avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
+        avg_reward += avg_reward_comparison
+
+        # Log the loss and other metrics every 'log_interval' iterations
+        log_interval = 1
+        if g % log_interval == (log_interval - 1):
+            writer.add_scalar("Game Score", game.score, (g + 1))
+
+            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+                              (g + 1))
+            writer.add_scalar("Declares/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+                              ((g + 1)))
+            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1] + 1e-7), (g + 1))
+            writer.add_scalar("Asks/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3] + 1e-7), (g + 1))
+
 
 def levels_train(levels, games, gamma, tau, lr, outfile, writer):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
@@ -295,7 +331,7 @@ def main():
     WRITER = SummaryWriter(f"runs/{OUTFILE}")
 
     train(GAMES, LR, OUTFILE, WRITER)
-    # random_vs_random(GAMES)
+    # random_vs_random(GAMES, WRITER)
     WRITER.close()
 
 
