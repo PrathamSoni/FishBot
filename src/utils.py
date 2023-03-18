@@ -94,11 +94,12 @@ def valid_asks(iam, mycards, matrix):
     return EYE[askable]
 
 def valid_declares(iam, mycards, matrix):
-    allies = TEAM0 if iam < 3 else ~TEAM0
-    allies[iam] = False
-    enemies = TEAM0 if iam >= 3 else ~TEAM0
-    enemies_have_card = torch.sum(matrix[enemies], dim=1)
-    suits_to_declare = [torch.sum(enemies_have_card[cards_of_suit(i)]) for i in range(num_suits)]
+    pass
+    # allies = TEAM0 if iam < 3 else ~TEAM0
+    # allies[iam] = False
+    # enemies = TEAM0 if iam >= 3 else ~TEAM0
+    # enemies_have_card = torch.sum(matrix[enemies], dim=1)
+    # suits_to_declare = [torch.sum(enemies_have_card[cards_of_suit(i)]) for i in range(num_suits)]
     # extremely haram portion of quesitonable veracity
     # all_declares = []
     # for suit in suits_to_declare:
@@ -121,9 +122,9 @@ def valid_declares(iam, mycards, matrix):
     #             possible = new_possibles
     #     if len(possible[0]) != 0:
     #         all_declares += possible
-    return all_declares
+    # return all_declares
 
 
 
 
-    return EYE[askable]
+    # return EYE[askable]

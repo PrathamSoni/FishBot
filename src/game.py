@@ -63,7 +63,7 @@ class Game:
 
     def asks(self, j, card):
         i = self.turn
-        # print(f"Player {i} asked Player {j} for {card}")
+        print(f"Player {i} asked Player {j} for {card}")
 
         if not ((self.players[i].team == 0) ^ (self.players[j].team == 0)):
             print(f"Player {i} and Player {j} are on the same team.")
@@ -115,7 +115,7 @@ class Game:
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
-                # print(f"Player {i} is declaring {suit}.")
+                print(f"Player {self.turn} is declaring {suit}.")
             elif get_suit(card) != suit:
                 print("Not all cards in same suit")
                 raise ValueError()
@@ -125,6 +125,7 @@ class Game:
             raise ValueError()
 
         if suit in self.declared_suites:
+            print(self.declared_suites, suit)
             print(f"Suit already declared")
             raise ValueError()
 
@@ -169,8 +170,7 @@ class Game:
     def step(self, policy):
         # want to print reward and action taken
         i = self.turn
-        valid_declares(i, self.players[i].cards, self.card_tracker)
-        ask_action = policies.ask(self)
+        ask_action = policy.ask(self)
         reward_dict = defaultdict(int)
         success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
         reward_dict[i] += reward

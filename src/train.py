@@ -60,6 +60,35 @@ def train(games, lr, outfile, writer):
         print(f"Average score per turn: {game.cumulative_reward / steps}")
         print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
 
+def random_vs_random(games: int):
+    n = 6
+    policies = [RandomPolicy() for _ in range(n)]
+    our_guy_reward = 0
+    our_guy_turns = 0
+
+    for g in range(games):
+        print(f"Game {g}")
+        steps = 0
+        game = Game(n)
+        game.turn = 0
+
+        while not game.is_over():
+            player_id = game.turn
+            steps += 1
+
+            reward, action = game.step(policies[player_id])
+
+            if player_id == 0:
+                our_guy_reward += reward[player_id]
+                our_guy_turns += 1
+
+            if steps == 200:
+                break
+
+
+        print(f"Ending game score: {game.score}")
+        print(f"Average score per turn: {game.cumulative_reward / steps}")
+        print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
 
 def levels_train(levels, games, gamma, tau, lr, outfile, writer):
     time_string = "" + date.today().strftime("%d-%m-%Y") + "_" + datetime.now().strftime("%H-%M-%S")
@@ -198,8 +227,8 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
 
 def main():
     # torch.autograd.set_detect_anomaly(True)
-    # if len(sys.argv) != 4:
-    #     raise Exception("usage: python train.py <outfile>.txt num_levels num_games_per_level")
+    if len(sys.argv) != 3:
+        raise Exception("usage: python train.py <outfile>.txt num_games")
     # Set with params
     OUTFILE = sys.argv[1]
     GAMES = int(sys.argv[2])
@@ -208,8 +237,9 @@ def main():
 
     WRITER = SummaryWriter(f"runs/{OUTFILE}")
 
-    train(GAMES, LR, OUTFILE, WRITER)
-
+    # train(GAMES, LR, OUTFILE, WRITER)
+    # train(GAMES, LR)
+    random_vs_random(GAMES)
     WRITER.close()
 
 
