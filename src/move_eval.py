@@ -44,17 +44,16 @@ class MoveEval(Module):
 
         declare, pred, score = self.forward(score, card_tracker, cards)
 
-        if not declare:
-            output = PolicyOutput(
+        return PolicyOutput(
                 is_declare=False,
                 to_ask=pred[0],
                 card=pred[1],
                 score=score
             )
-        else:
-            output = PolicyOutput(
+
+    def declares(self, game):
+        return PolicyOutput(
                 is_declare=True,
                 declare_dict=pred,
-                score=score
+                score=GOOD_DECLARE
             )
-        return output
