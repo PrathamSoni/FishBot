@@ -7,7 +7,7 @@ class Policy:
     def ask(self, game) -> PolicyOutput:
         pass
 
-    def declare(self, game) -> list[PolicyOutput]:
+    def declare(self, game):
         pass
 
 
@@ -60,7 +60,7 @@ class RandomPolicy(Policy):
             card = random.choice(cards)
             return PolicyOutput(is_declare=False, to_ask=to_ask, card=card, score=None, player=game.turn)
 
-    def declare(self, game) -> list[PolicyOutput]:
+    def declare(self, game):
         # output list of PolicyOutputs
         actions = []
         for player in range(game.n):
