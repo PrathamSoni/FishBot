@@ -311,6 +311,7 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
                               (level + 1) * (g + 1))
             writer.add_scalar("Declares/Others + Rate", all_declares[2] / (all_declares[2] + all_declares[3]),
                               (level + 1) * (g + 1))
+
             print(all_declares, all_asks)
             writer.add_scalar("Asks/Agent +", all_asks[0], (level + 1) * (g + 1))
             writer.add_scalar("Asks/Agent -", all_asks[1], (level + 1) * (g + 1))
@@ -318,6 +319,7 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
             writer.add_scalar("Asks/Others -", all_asks[3], (level + 1) * (g + 1))
             writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (level + 1) * (g + 1))
             writer.add_scalar("Asks/Others + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (level + 1) * (g + 1))
+
 
             # Reset the running loss
             # running_loss = 0.0
@@ -353,6 +355,11 @@ def main():
     # random_vs_random(GAMES, WRITER)
     WRITER.close()
 
+    WRITER = SummaryWriter(f"runs/{OUTFILE}")
+
+    levels_train(LEVELS, GAMES, GAMMA, LR, OUTFILE, WRITER)
+
+    WRITER.close()
 
 if __name__ == "__main__":
     main()
