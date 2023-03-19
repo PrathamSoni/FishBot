@@ -88,49 +88,42 @@ class MoveEval(Module):
             player=i,
         )
 
-    def declare(self, game):
+    def declare(self, game, i):
+        cards = game.players[i].cards
+        declares = valid_declares(i, cards, game.card_tracker)
         all_declares = []
-        players = list(range(self.n_players))
-        random.shuffle(players)
-        for player in players:
-            cards = game.players[player].cards
-            declares = valid_declares(player, cards, game.card_tracker)
+        for suit, combos in declares.items():
+            if len(combos) == 0:
+                continue
 
-            for suit, combos in declares.items():
-                if len(combos) == 0:
-                    continue
+            moves = torch.zeros((len(combos), num_suits + game.n//2*num_in_suit))
+            moves[:, suit] = 1
+            for j, combo in enumerate(combos):
 
-                moves = torch.zeros((len(combos), num_suits + game.n//2*num_in_suit))
-                moves[:, suit] = 1
-                for i, combo in enumerate(combos):
+                one_hot = [num_suits + j*game.n//2 + v for j, v in enumerate(combo)]
+                moves[j, one_hot] = 1
 
-                    one_hot = [num_suits + j*game.n//2 + v for j, v in enumerate(combo)]
-                    if 27 in one_hot:
-                        import pdb;
-                        pdb.set_trace()
-                    moves[i, one_hot] = 1
+            m, _ = moves.shape
+            cards_in_hand = torch.tensor([len(game.players[i].cards) for i in range(game.n)]).expand(m, game.n)
+            moves = torch.cat(
+                [game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), cards_in_hand, moves],
+                dim=-1)
+            scores = self(moves, "declare")
+            score = scores.max()
+            best = scores.argmax().item()
+            move = moves[best]
 
-                m, _ = moves.shape
-                cards_in_hand = torch.tensor([len(game.players[i].cards) for i in range(game.n)]).expand(m, game.n)
-                moves = torch.cat(
-                    [game.card_tracker.flatten().expand(m, game.n * num_in_suit * num_suits), cards_in_hand, moves],
-                    dim=-1)
-                scores = self(moves, "declare")
-                score = scores.max()
-                best = scores.argmax().item()
-                move = moves[best]
+            self.declare_history.append(move)
 
-                self.declare_history.append(move)
+            assignments = combos[best]
+            if i >= 3:
+                assignments = [c + 3 for c in assignments]
 
-                assignments = combos[best]
-                if player >= 3:
-                    assignments = [c + 3 for c in assignments]
-
-                all_declares.append(PolicyOutput(
-                    is_declare=True,
-                    declare_dict=dict(zip(cards_of_suit(suit), assignments)),
-                    score=score,
-                    player=player
-                ))
+            all_declares.append(PolicyOutput(
+                is_declare=True,
+                declare_dict=dict(zip(cards_of_suit(suit), assignments)),
+                score=score,
+                player=i
+            ))
 
         return all_declares

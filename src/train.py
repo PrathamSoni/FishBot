@@ -20,6 +20,8 @@ def train(games, lr, outfile, writer):
     n = 6
     # Select trainer here
     model = MoveEval()
+    policies = [model for _ in range(n)]
+
     optimizer = optim.AdamW(model.parameters(), lr=lr, amsgrad=True)
     criterion = nn.SmoothL1Loss()
 
@@ -44,7 +46,7 @@ def train(games, lr, outfile, writer):
             steps += 1
             i = game.turn
             team = game.players[i].team
-            reward_dict, action, declare_actions = game.step(model)
+            reward_dict, action, declare_actions = game.step(policies)
             team_list.append(team)
 
             if action.success:
@@ -133,12 +135,14 @@ def train(games, lr, outfile, writer):
             # writer.add_scalar("Asks/Agent -", all_asks[1], (g + 1))
             # writer.add_scalar("Asks/Others +", all_asks[2], (g + 1))
             # writer.add_scalar("Asks/Others -", all_asks[3], (g + 1))
-        random_vs_random(deepcopy(model).eval(), 1, writer, g)    
+        random_vs_random(deepcopy(model).eval(), 1, writer, g)
+
+    torch.save(model, 'model.pt')
 
 
 def random_vs_random(model, games: int, writer: SummaryWriter, g):
     n = 6
-    policies = [model for _ in range(n // 2)] + [RandomPolicy() for _ in range(n // 2)]
+    policies = [model for _ in range(n // 2)] + [MoveEval() for _ in range(n // 2)]
     our_guy_reward = 0
     our_guy_turns = 0
 
@@ -158,7 +162,7 @@ def random_vs_random(model, games: int, writer: SummaryWriter, g):
         player_id = game.turn
         steps += 1
 
-        reward, action, _ = game.step(policies[player_id])
+        reward, action, _ = game.step(policies)
 
         if player_id == 0:
             our_guy_reward += reward[player_id]

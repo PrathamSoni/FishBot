@@ -170,9 +170,11 @@ class Game:
                 return False
         return True
 
-    def step(self, policy):
+    def step(self, policies):
         # want to print reward and action taken
         i = self.turn
+
+        policy = policies[i]
         ask_action = policy.ask(self)
         reward_dict = defaultdict(int)
         success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
@@ -180,7 +182,7 @@ class Game:
         ask_action.success = success
         declare_actions = []
 
-        actions = policy.declare(self)
+        actions = [action for i in range(self.n) for action in policies[i].declare(self, i)]
         while len(actions) > 0 and not self.is_over():
             for action in actions:
                 declare_dict = action.declare_dict
@@ -196,10 +198,8 @@ class Game:
                 for i in range(self.n):
                     if len(self.players[i].cards) == 0:
                         self.card_tracker[i] = 0
-            actions = policy.declare(self)
+            actions = [action for i in range(self.n) for action in policies[i].declare(self, i)]
 
-
-        # print(reward, action)
         self.n_rounds += 1
         if len(self.players[self.turn].cards) == 0 and not self.is_over():
             team = self.players[i].team
