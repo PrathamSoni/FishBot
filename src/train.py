@@ -56,7 +56,9 @@ def train(games, lr, outfile, writer):
             writer.add_scalar("Step Ask Loss", loss, (g + 1) * (steps + 1))
 
             if len(declare_actions) > 0:
-                true_reward = torch.stack([torch.tensor(GOOD_DECLARE) if action.success else torch.tensor(BAD_DECLARE) for action in declare_actions if action.success is not None])
+                true_reward = torch.stack(
+                    [torch.tensor(GOOD_DECLARE) if action.success else torch.tensor(BAD_DECLARE) for action in
+                     declare_actions if action.success is not None])
                 declare_scores = torch.stack([action.score for action in declare_actions if action.success is not None])
                 declare_loss = criterion(true_reward, declare_scores)
                 writer.add_scalar("Step declare Loss", declare_loss, (g + 1) * (steps + 1))
@@ -320,7 +322,6 @@ def levels_train(levels, games, gamma, tau, lr, outfile, writer):
             writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (level + 1) * (g + 1))
             writer.add_scalar("Asks/Others + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (level + 1) * (g + 1))
 
-
             # Reset the running loss
             # running_loss = 0.0
 
@@ -355,11 +356,6 @@ def main():
     # random_vs_random(GAMES, WRITER)
     WRITER.close()
 
-    WRITER = SummaryWriter(f"runs/{OUTFILE}")
-
-    levels_train(LEVELS, GAMES, GAMMA, LR, OUTFILE, WRITER)
-
-    WRITER.close()
 
 if __name__ == "__main__":
     main()
