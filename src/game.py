@@ -42,7 +42,7 @@ class Game:
         self.turn = random.choice(range(n))
         self.history = np.zeros((0, 4))
 
-        self.card_tracker = np.ones((n, deck_size))
+        self.card_tracker = torch.ones((n, deck_size), dtype=torch.int)
         self.cumulative_reward = 0
         # Tracks players' asks and declares
         self.positive_asks = [0] * 6
@@ -64,8 +64,10 @@ class Game:
     def asks(self, j, card):
         i = self.turn
         # print(f"Player {i} asked Player {j} for {card}")
+        if card is None:
+            return 0
 
-        if not ((i < self.n // 2) ^ (j < self.n // 2)):
+        if not ((self.players[i].team == 0) ^ (self.players[j].team == 0)):
             print(f"Player {i} and Player {j} are on the same team.")
             raise ValueError()
 
@@ -109,15 +111,13 @@ class Game:
         self.history = np.concatenate([self.history, info])
         return toReturn
 
-    def declare(self, declare_dict):
-        i = self.turn
-
+    def declare(self, declare_dict, j):
         # validate cards
         suit = None
         for card in declare_dict.keys():
             if suit is None:
                 suit = get_suit(card)
-                # print(f"Player {i} is declaring {suit}.")
+                # print(f"Player {j} is declaring {suit}.")
             elif get_suit(card) != suit:
                 print("Not all cards in same suit")
                 raise ValueError()
@@ -132,8 +132,8 @@ class Game:
 
         # validate team
         teammates = set(declare_dict.values())
-        declare_team = i < self.n // 2
-        same_team = [not (declare_team ^ (teammate < self.n // 2)) for teammate in teammates]
+        declare_team = self.players[j].team == 0
+        same_team = [not (declare_team ^ (self.players[teammate].team == 0)) for teammate in teammates]
         if not all(same_team):
             print(f"Declaration between different teams not allowed")
             raise ValueError()
@@ -157,9 +157,11 @@ class Game:
 
         self.declared_suites.add(suit)
         if correct:
-            self.positive_declares[i] += 1
+            self.positive_declares[j] += 1
         else:
-            self.negative_declares[i] += 1
+            self.negative_declares[j] += 1
+
+        self.card_tracker[:, suit_splice(suit)] = 0
         return GOOD_DECLARE if correct else BAD_DECLARE
 
     def is_over(self):
@@ -168,22 +170,38 @@ class Game:
                 return False
         return True
 
-    def step(self, policies):
+    def step(self, policy):
         # want to print reward and action taken
         i = self.turn
-        action = policies[i].ask(self)
+        ask_action = policy.ask(self)
         reward_dict = defaultdict(int)
-        reward_dict[i] += self.asks(action.to_ask, action.card)
+        success = (reward := self.asks(ask_action.to_ask, ask_action.card)) == SUCCEEDS
+        reward_dict[i] += reward
+        ask_action.success = success
+        declare_actions = []
 
-        for i, policy in enumerate(policies):
-            action = policy.declare(self)
-            while action is not None:
-                action = policy.declare(self)
-                reward_dict[i] += self.declare(action.declare_dict)
+        actions = policy.declare(self)
+        while len(actions) > 0 and not self.is_over():
+            for action in actions:
+                declare_dict = action.declare_dict
+                declare_actions.append(action)
+
+                if get_suit(list(declare_dict.keys())[0]) in self.declared_suites:
+                    continue
+
+                success = (reward := self.declare(declare_dict, action.player)) == GOOD_DECLARE
+                reward_dict[i] += reward
+                action.success = success
+
+                for i in range(self.n):
+                    if len(self.players[i].cards) == 0:
+                        self.card_tracker[i] = 0
+            actions = policy.declare(self)
+
 
         # print(reward, action)
         self.n_rounds += 1
-        if self.turn == i and len(self.players[i].cards) == 0 and not self.is_over():
+        if len(self.players[self.turn].cards) == 0 and not self.is_over():
             team = self.players[i].team
             same_team_with_cards = [j for j in range(team * (self.n // 2), (team + 1) * (self.n // 2)) if
                                     len(self.players[j].cards) > 0]
@@ -196,7 +214,7 @@ class Game:
                                          len(self.players[j].cards) > 0]
                 self.turn = random.choice(other_team_with_cards)
 
-        return reward_dict, action
+        return reward_dict, ask_action, declare_actions
 
 
 def core_gameplay_loop(game, policies):
