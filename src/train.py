@@ -20,6 +20,7 @@ def train(games, lr, writer):
     n = 6
     # Select trainer here
     model = MoveEval()
+    policies = [model for i in range(n)]
     optimizer = optim.AdamW(model.parameters(), lr=lr, amsgrad=True)
     criterion = nn.SmoothL1Loss()
 
@@ -49,7 +50,7 @@ def train(games, lr, writer):
             steps += 1
             i = game.turn
             team = game.players[i].team
-            reward_dict, action, declare_actions = game.step(model)
+            reward_dict, action, declare_actions = game.step(policies)
             team_list.append(team)
 
             if action.success:
@@ -125,16 +126,16 @@ def train(games, lr, writer):
             # average_loss = running_loss / log_interval
 
             # Log the loss to TensorBoard
-            writer.add_scalar("Game Loss", logging_game_loss, (g + 1))
-            writer.add_scalar("Steps", logging_steps, (g + 1))
-            writer.add_scalar("Game Score", logging_score, (g + 1))
+            writer.add_scalar("Game Loss/Train", logging_game_loss, (g + 1))
+            writer.add_scalar("Steps/Train", logging_steps, (g + 1))
+            writer.add_scalar("Game Score/Train", logging_score, (g + 1))
 
-            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+            writer.add_scalar("Declares/Train/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
                               (g + 1))
-            writer.add_scalar("Declares/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+            writer.add_scalar("Declares/Train/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
                               (g + 1))
-            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
-            writer.add_scalar("Asks/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
+            writer.add_scalar("Asks/Train/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
+            writer.add_scalar("Asks/Train/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
 
             all_asks = [0] * 4
             all_declares = [0] * 4
@@ -142,11 +143,14 @@ def train(games, lr, writer):
             logging_steps = 0
             logging_game_loss = 0
             logging_score = 0
+        random_vs_random(deepcopy(model).eval(), g, writer)
+
+    torch.save(model, 'model.pt')
 
 
-def random_vs_random(games: int, writer: SummaryWriter):
+def random_vs_random(model, g: int, writer: SummaryWriter):
     n = 6
-    policies = [RandomPolicy() for _ in range(n)]
+    policies = [model for _ in range(n // 2)] + [MoveEval() for _ in range(n // 2)]
     our_guy_reward = 0
     our_guy_turns = 0
 
@@ -157,58 +161,58 @@ def random_vs_random(games: int, writer: SummaryWriter):
     our_guy_reward = 0
     our_guy_turns = 0
 
-    for g in range(games):
-        # print(f"Game {g}")
-        steps = 0
-        game = Game(n)
-        game.turn = 0
+    # print(f"Game {g}")
+    steps = 0
+    game = Game(n)
+    game.turn = 0
 
-        while not game.is_over():
-            player_id = game.turn
-            steps += 1
+    while not game.is_over():
+        player_id = game.turn
+        steps += 1
 
-            reward, action = game.step(policies[player_id])
+        reward, _, _ = game.step(policies)
 
-            if player_id == 0:
-                our_guy_reward += reward[player_id]
-                our_guy_turns += 1
+        if player_id == 0:
+            our_guy_reward += reward[player_id]
+            our_guy_turns += 1
 
-            if steps == 1000:
-                break
+        if steps == 1000:
+            break
 
-        print(f"Ending game score: {game.score}")
-        print(f"Average score per turn: {game.cumulative_reward / steps}")
-        print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
+    print(f"Ending game score: {game.score}")
+    print(f"Average score per turn: {game.cumulative_reward / steps}")
+    print(f"Total positive asks: {game.positive_asks}, total negative asks: {game.negative_asks}")
 
-        # Reward stats
-        our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
-        average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
+    # Reward stats
+    our_guy_reward_per_turn = our_guy_reward / (our_guy_turns + 1e-7)
+    average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
 
-        # Update overall statistics
-        all_asks[0] += game.positive_asks[0]
-        all_asks[1] += game.negative_asks[0]
-        all_asks[2] += sum(game.positive_asks)
-        all_asks[3] += sum(game.negative_asks)
+    # Update overall statistics
+    all_asks[0] += game.positive_asks[0]
+    all_asks[1] += game.negative_asks[0]
+    all_asks[2] += sum(game.positive_asks)
+    all_asks[3] += sum(game.negative_asks)
 
-        all_declares[0] += game.positive_declares[0]
-        all_declares[1] += game.negative_declares[0]
-        all_declares[2] += sum(game.positive_declares)
-        all_declares[3] += sum(game.negative_declares)
+    all_declares[0] += game.positive_declares[0]
+    all_declares[1] += game.negative_declares[0]
+    all_declares[2] += sum(game.positive_declares)
+    all_declares[3] += sum(game.negative_declares)
 
-        avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
-        avg_reward += avg_reward_comparison
+    avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
+    avg_reward += avg_reward_comparison
 
-        # Log the loss and other metrics every 'log_interval' iterations
-        log_interval = 1
-        if g % log_interval == (log_interval - 1):
-            writer.add_scalar("Game Score", game.score, (g + 1))
+    # Log the loss and other metrics every 'log_interval' iterations
+    log_interval = 1
+    if g % log_interval == (log_interval - 1):
+        writer.add_scalar("Game Score/Eval", game.score, (g + 1))
 
-            writer.add_scalar("Declares/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
-                              (g + 1))
-            writer.add_scalar("Declares/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
-                              ((g + 1)))
-            writer.add_scalar("Asks/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1] + 1e-7), (g + 1))
-            writer.add_scalar("Asks/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3] + 1e-7), (g + 1))
+        writer.add_scalar("Declares/Eval/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+                          (g + 1))
+        writer.add_scalar("Declares/Eval/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+                          ((g + 1)))
+        writer.add_scalar("Asks/Eval/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1] + 1e-7), (g + 1))
+        writer.add_scalar("Asks/Eval/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3] + 1e-7), (g + 1))
+
 
 def main():
     # torch.autograd.set_detect_anomaly(True)

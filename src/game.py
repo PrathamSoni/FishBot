@@ -170,7 +170,7 @@ class Game:
                 return False
         return True
 
-    def step(self, policy):
+    def step(self, policies):
         # want to print reward and action taken
         i = self.turn
         policy = policies[i]
