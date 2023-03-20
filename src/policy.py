@@ -7,6 +7,7 @@ class Policy:
     def ask(self, game) -> PolicyOutput:
         pass
 
+
     def declare(self, game, i):
         pass
 
@@ -52,4 +53,5 @@ class RandomPolicy(Policy):
                 action.declare_dict = {d: (team_offset + random.randint(0, 2)) for d in to_declare}
                 actions.append(action)
                 return actions
+
         return actions
