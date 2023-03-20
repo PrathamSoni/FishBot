@@ -7,7 +7,6 @@ class Policy:
     def ask(self, game) -> PolicyOutput:
         pass
 
-
     def declare(self, game, i):
         pass
 
@@ -31,11 +30,9 @@ class RandomPolicy(Policy):
             r = range(game.n // 2, game.n)
         cards = self.get_cards(game, game.turn)
         to_ask = random.choice(r)
-        if not to_ask:
-            return PolicyOutput(is_declare=False, to_ask=None, card=None, score=None, player=game.turn)
-        else:
-            card = random.choice(cards)
-            return PolicyOutput(is_declare=False, to_ask=to_ask, card=card, score=None, player=game.turn)
+
+        card = random.choice(cards)
+        return PolicyOutput(is_declare=False, to_ask=to_ask, card=card, score=None, player=game.turn)
 
     def declare(self, game, player):
         actions = []

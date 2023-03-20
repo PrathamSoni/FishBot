@@ -143,14 +143,15 @@ def train(games, lr, writer):
             logging_steps = 0
             logging_game_loss = 0
             logging_score = 0
-        random_vs_random(deepcopy(model).eval(), g, writer)
+        # deepcopy(model).eval()
+        eval(model, RandomPolicy(), g, writer)
 
     torch.save(model, 'model.pt')
 
 
-def random_vs_random(model, g: int, writer: SummaryWriter):
+def eval(model, eval_model, g: int, writer: SummaryWriter):
     n = 6
-    policies = [model for _ in range(n // 2)] + [MoveEval() for _ in range(n // 2)]
+    policies = [model for _ in range(n // 2)] + [eval_model for _ in range(n // 2)]
     our_guy_reward = 0
     our_guy_turns = 0
 
@@ -164,7 +165,6 @@ def random_vs_random(model, g: int, writer: SummaryWriter):
     # print(f"Game {g}")
     steps = 0
     game = Game(n)
-    game.turn = 0
 
     while not game.is_over():
         player_id = game.turn

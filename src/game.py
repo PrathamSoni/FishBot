@@ -182,8 +182,9 @@ class Game:
         ask_action.success = success
         declare_actions = []
 
-        actions = [action for i in range(self.n) for action in policies[i].declare(self, i)]
-
+        ppl = list(range(self.n))
+        random.shuffle(ppl)
+        actions = [action for i in ppl for action in policies[i].declare(self, i)]
         while len(actions) > 0 and not self.is_over():
             for action in actions:
                 declare_dict = action.declare_dict
@@ -200,7 +201,6 @@ class Game:
                     if len(self.players[i].cards) == 0:
                         self.card_tracker[i] = 0
             actions = [action for i in range(self.n) for action in policies[i].declare(self, i)]
-
 
         self.n_rounds += 1
         if len(self.players[self.turn].cards) == 0 and not self.is_over():
