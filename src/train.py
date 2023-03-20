@@ -89,15 +89,15 @@ def train(games, lr, writer):
         # Reward stats
 
         # Update overall statistics
-        all_asks[0] += game.positive_asks[0] / log_interval
-        all_asks[1] += game.negative_asks[0] / log_interval
-        all_asks[2] += sum(game.positive_asks) / log_interval
-        all_asks[3] += sum(game.negative_asks) / log_interval
+        all_asks[0] += (game.positive_asks[0] + game.positive_asks[1] + game.positive_asks[2]) / log_interval
+        all_asks[1] += (game.negative_asks[0] + game.negative_asks[1] + game.negative_asks[2]) / log_interval
+        all_asks[2] += (game.positive_asks[3] + game.positive_asks[4] + game.positive_asks[5]) / log_interval
+        all_asks[3] += (game.negative_asks[3] + game.negative_asks[4] + game.negative_asks[5]) / log_interval
 
-        all_declares[0] += game.positive_declares[0] / log_interval
-        all_declares[1] += game.negative_declares[0] / log_interval
-        all_declares[2] += sum(game.positive_declares) / log_interval
-        all_declares[3] += sum(game.negative_declares) / log_interval
+        all_declares[0] += (game.positive_declares[0] + game.positive_declares[1] + game.positive_declares[2]) / log_interval
+        all_declares[1] += (game.negative_declares[0] + game.negative_declares[1] + game.negative_declares[2]) / log_interval
+        all_declares[2] += (game.positive_declares[3] + game.positive_declares[4] + game.positive_declares[5]) / log_interval
+        all_declares[3] += (game.negative_declares[3] + game.negative_declares[4] + game.negative_declares[5]) / log_interval
 
         game_scores = torch.tensor(
             [WIN_GAME if (team == 0 and game.score > 0) or (team == 1 and game.score < 0) else LOSE_GAME for
@@ -130,12 +130,12 @@ def train(games, lr, writer):
             writer.add_scalar("Steps/Train", logging_steps, (g + 1))
             writer.add_scalar("Game Score/Train", logging_score, (g + 1))
 
-            writer.add_scalar("Declares/Train/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+            writer.add_scalar("Declares/Train/Team 1 Success Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
                               (g + 1))
-            writer.add_scalar("Declares/Train/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+            writer.add_scalar("Declares/Train/Team 2 Success Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
                               (g + 1))
-            writer.add_scalar("Asks/Train/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
-            writer.add_scalar("Asks/Train/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
+            writer.add_scalar("Asks/Train/Team 1 Success Rate", all_asks[0] / (all_asks[0] + all_asks[1]), (g + 1))
+            writer.add_scalar("Asks/Train/Team 2 Success Rate", all_asks[2] / (all_asks[2] + all_asks[3]), (g + 1))
 
             all_asks = [0] * 4
             all_declares = [0] * 4
@@ -156,7 +156,6 @@ def eval(model, eval_model, g: int, writer: SummaryWriter):
     our_guy_turns = 0
 
     # Stats
-    avg_reward = 0
     all_asks = [0] * 4
     all_declares = [0] * 4
     our_guy_reward = 0
@@ -188,30 +187,28 @@ def eval(model, eval_model, g: int, writer: SummaryWriter):
     average_reward_per_turn = game.cumulative_reward / (steps + 1e-7)
 
     # Update overall statistics
-    all_asks[0] += game.positive_asks[0]
-    all_asks[1] += game.negative_asks[0]
-    all_asks[2] += sum(game.positive_asks)
-    all_asks[3] += sum(game.negative_asks)
+    all_asks[0] = (game.positive_asks[0] + game.positive_asks[1] + game.positive_asks[2])
+    all_asks[1] = (game.negative_asks[0] + game.negative_asks[1] + game.negative_asks[2])
+    all_asks[2] = (game.positive_asks[3] + game.positive_asks[4] + game.positive_asks[5])
+    all_asks[3] = (game.negative_asks[3] + game.negative_asks[4] + game.negative_asks[5])
 
-    all_declares[0] += game.positive_declares[0]
-    all_declares[1] += game.negative_declares[0]
-    all_declares[2] += sum(game.positive_declares)
-    all_declares[3] += sum(game.negative_declares)
+    all_declares[0] = (game.positive_declares[0] + game.positive_declares[1] + game.positive_declares[2])
+    all_declares[1] = (game.negative_declares[0] + game.negative_declares[1] + game.negative_declares[2])
+    all_declares[2] = (game.positive_declares[3] + game.positive_declares[4] + game.positive_declares[5])
+    all_declares[3] = (game.negative_declares[3] + game.negative_declares[4] + game.negative_declares[5])
 
-    avg_reward_comparison = our_guy_reward_per_turn - average_reward_per_turn
-    avg_reward += avg_reward_comparison
 
     # Log the loss and other metrics every 'log_interval' iterations
     log_interval = 1
     if g % log_interval == (log_interval - 1):
         writer.add_scalar("Game Score/Eval", game.score, (g + 1))
 
-        writer.add_scalar("Declares/Eval/Agent + Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
+        writer.add_scalar("Declares/Eval/Team 1 Success Rate", all_declares[0] / (all_declares[0] + all_declares[1] + 1e-7),
                           (g + 1))
-        writer.add_scalar("Declares/Eval/Everyone + Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
+        writer.add_scalar("Declares/Eval/Team 2 Success Rate", all_declares[2] / (all_declares[2] + all_declares[3] + 1e-7),
                           ((g + 1)))
-        writer.add_scalar("Asks/Eval/Agent + Rate", all_asks[0] / (all_asks[0] + all_asks[1] + 1e-7), (g + 1))
-        writer.add_scalar("Asks/Eval/Everyone + Rate", all_asks[2] / (all_asks[2] + all_asks[3] + 1e-7), (g + 1))
+        writer.add_scalar("Asks/Eval/Team 1 Success Rate", all_asks[0] / (all_asks[0] + all_asks[1] + 1e-7), (g + 1))
+        writer.add_scalar("Asks/Eval/Team 2 Success Rate", all_asks[2] / (all_asks[2] + all_asks[3] + 1e-7), (g + 1))
 
 
 def main():
